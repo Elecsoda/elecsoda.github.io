@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灯光切换游戏</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #add8e6; /* 淡蓝色背景 */
+            font-family: Arial, sans-serif;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin-top: 20px;
+        }
+        .light {
+            width: 50px;
+            height: 50px;
+            background-color: black;
+            border-radius: 50%;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .light.on {
+            background-color: red;
+        }
+        .setup-instructions {
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label for="lightCount">选择灯的数量：</label>
+        <select id="lightCount">
+            <option value="4">4盏灯</option>
+            <option value="5">5盏灯</option>
+            <option value="6">6盏灯</option>
+            <option value="7" selected>7盏灯</option>
+            <option value="8">8盏灯</option>
+            <option value="9">9盏灯</option>
+            <option value="10">10盏灯</option>
+            <option value="11">11盏灯</option>
+            <option value="12">12盏灯</option>
+            <option value="13">13盏灯</option>
+            <option value="14">14盏灯</option>
+            <option value="15">15盏灯</option>
+        </select>
+        <button id="confirmSetup">确认初始状态</button>
+    </div>
+    <div class="setup-instructions" id="instructions">
+        点击灯光设置初始亮灭状态，然后点击“确认初始状态”开始游戏。
+    </div>
+    <div class="container" id="circle"></div>
+
+    <script>
+        const container = document.getElementById('circle');
+        const lightCountSelect = document.getElementById('lightCount');
+        const confirmSetupButton = document.getElementById('confirmSetup');
+        const instructions = document.getElementById('instructions');
+        const radius = 120; // 圆的半径
+
+        let lightCount = parseInt(lightCountSelect.value);
+        let isSetupPhase = true; // 是否处于设置初始状态阶段
+        const lights = []; // 用于存储灯的引用
+
+        // 渲染灯
+        function renderLights() {
+            container.innerHTML = ''; // 清空容器
+            lights.length = 0; // 清空灯的引用数组
+
+            for (let i = 0; i < lightCount; i++) {
+                const angle = (360 / lightCount) * i; // 每盏灯的角度
+                const radians = (angle * Math.PI) / 180; // 转换为弧度
+                const x = radius * Math.cos(radians); // 计算x坐标
+                const y = radius * Math.sin(radians); // 计算y坐标
+
+                // 创建灯的元素
+                const light = document.createElement('div');
+                light.classList.add('light');
+                light.style.left = `${150 + x}px`; // 圆心坐标 + x偏移
+                light.style.top = `${150 - y}px`; // 圆心坐标 - y偏移（注意方向）
+                light.textContent = i + 1; // 设置灯的编号
+                light.dataset.index = i; // 设置灯的索引值
+
+                // 点击事件
+                light.addEventListener('click', () => {
+                    if (isSetupPhase) {
+                        light.classList.toggle('on'); // 设置初始状态
+                    } else {
+                        toggleLights(i); // 切换当前灯及左右邻居的状态
+                    }
+                });
+
+                // 添加到容器和数组中
+                container.appendChild(light);
+                lights.push(light);
+            }
+        }
+
+        // 切换灯的状态
+        function toggleLights(index) {
+            const toggle = (i) => {
+                lights[i].classList.toggle('on');
+            };
+
+            // 当前灯
+            toggle(index);
+
+            // 左侧灯（环形处理）
+            toggle((index - 1 + lights.length) % lights.length);
+
+            // 右侧灯（环形处理）
+            toggle((index + 1) % lights.length);
+        }
+
+        // 确认初始状态
+        confirmSetupButton.addEventListener('click', () => {
+            isSetupPhase = false; // 退出设置阶段
+            instructions.textContent = "现在可以点击灯光进行亮灭切换操作。";
+        });
+
+        // 监听灯数量选择变化
+        lightCountSelect.addEventListener('change', () => {
+            lightCount = parseInt(lightCountSelect.value); // 更新灯数量
+            isSetupPhase = true; // 回到设置阶段
+            instructions.textContent = "点击灯光设置初始亮灭状态，然后点击“确认初始状态”开始游戏。";
+            renderLights(); // 重新渲染灯
+        });
+
+        // 初始渲染
+        renderLights();
+    </script>
+</body>
+</html>
