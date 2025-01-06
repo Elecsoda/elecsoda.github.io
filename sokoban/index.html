@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>推箱子游戏 - 可撤回 + 自定义地图</title>
+  <title>推箱子游戏 - 可撤回 + 自定义地图 + 按钮操作</title>
   <style>
     /* —— 基本样式 —— */
     body {
@@ -11,14 +11,13 @@
       text-align: center;
       background-color: #f4f4f9;
       font-family: Arial, sans-serif;
-      /* 避免出现水平滚动条 */
-      overflow-x: hidden;
+      overflow-x: hidden; /* 避免出现水平滚动条 */
     }
     h1 {
       margin: 20px 0;
     }
 
-    /* —— 按钮区域 —— */
+    /* —— 按钮区域（顶部） —— */
     #controls {
       margin-bottom: 10px;
     }
@@ -44,18 +43,17 @@
 
     /*
       —— 游戏区域 —— 
-      设为 80vw 宽，不到最大宽度 900px 时自适应，
-      避免一般情况下出现滚动条。
+      设为 80vw 宽，不超过最大宽度 900px，避免出现滚动条。
     */
     #game-board {
-      width: 80vw;          /* 占屏幕80%宽度 */
-      max-width: 900px;     /* 最大宽度，可根据需求调整 */
-      margin: 20px auto;    /* 居中 */
+      width: 80vw;
+      max-width: 900px;
+      margin: 20px auto;
       display: grid;
-      gap: 1px;             /* 网格间隙 */
+      gap: 1px;
       background-color: #bbb;
     }
-    /* 每个网格保持正方形，需要现代浏览器支持 */
+    /* 每个网格保持正方形，需要现代浏览器支持 aspect-ratio */
     .tile {
       aspect-ratio: 1 / 1;
       background-color: #fff;
@@ -69,18 +67,22 @@
 
     /* —— 墙壁 (#) —— */
     .wall {
-      background-color: #333;
-      color: #fff;
+      background-image: url('wall.png');
+      background-size: cover;
+      background-position: center;
     }
+
     /* —— 墙外空地 (_) —— */
     .outside {
       background-color: #e0e0e0;
       color: #aaa;
     }
+
     /* —— 普通空地 (-) —— */
     .floor {
       background-color: #fff;
     }
+
     /* —— 目标点（红点） —— */
     .goal::before {
       content: "";
@@ -93,29 +95,36 @@
       opacity: 0.6;
       z-index: 0; /* 在底层，让箱子/玩家叠在上方 */
     }
+
     /* —— 玩家（小人） —— */
     .player {
       background-image: url('human.png');
-      background-size: cover;
+      background-size: contain;
       background-position: center;
+      background-repeat: no-repeat;
       z-index: 1;
     }
+
     /* —— 箱子 —— */
     .box {
       background-image: url('box.png');
-      background-size: cover;
+      background-size: contain;
       background-position: center;
+      background-repeat: no-repeat;
       z-index: 1;
     }
+
     /* —— 箱子叠在目标点上 —— */
     .box-on-goal {
-      background-image: url('wall.png');
-      background-size: cover;
+      background-image: url('box.png');
+      background-size: contain;
       background-position: center;
-      background-color: #b30000; /* 深红叠加 */
+      background-repeat: no-repeat;
+      box-shadow: inset 0 0 0 2px #b30000; /* 显示红色边 */
       border-radius: 4px;
       z-index: 1;
     }
+
     /* —— 状态文本 —— */
     #status {
       font-size: 16px;
@@ -123,12 +132,58 @@
       min-height: 24px; 
       margin: 10px auto;
     }
+
+    /* ============ 手动操作按钮区（地图下方） ============ */
+    #manual-controls {
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 20px; /* 与撤回/重玩按钮保持距离 */
+      flex-wrap: wrap; /* 换行，适应小屏 */
+    }
+
+    /* —— 四向按钮采用 3×3 网格的布局（十字形） —— */
+    #arrow-container {
+      display: grid;
+      grid-template-columns: 50px 50px 50px;
+      grid-template-rows: 50px 50px 50px;
+      gap: 5px;
+      align-items: center;
+      justify-items: center;
+      /* 再让具体按钮放到对应位置 */
+      margin-bottom: 10px;
+    }
+    #btn-up {
+      grid-row: 1;  /* 行索引从1开始可以让上面一行留空 */
+      grid-column: 2;
+    }
+    #btn-left {
+      grid-row: 2;
+      grid-column: 1;
+    }
+    #btn-right {
+      grid-row: 2;
+      grid-column: 3;
+    }
+    #btn-down {
+      grid-row: 3;
+      grid-column: 2;
+    }
+
+    /* —— 右侧的“撤回”和“重玩”按钮 —— */
+    #side-buttons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>推箱子游戏</h1>
 
-  <!-- 按钮区域（关卡 + 自定义地图 + 撤回） -->
+  <!-- 顶部按钮区域：6个关卡 + 自定义地图 -->
   <div id="controls">
     <button id="btn-level1">关卡1</button>
     <button id="btn-level2">关卡2</button>
@@ -137,30 +192,52 @@
     <button id="btn-level5">关卡5</button>
     <button id="btn-level6">关卡6</button>
     <button id="btn-show-custom-map">自定义地图</button>
-    <button id="btn-undo">撤回到上一步</button>
   </div>
 
-  <!-- 自定义地图输入区（初始隐藏） -->
+  <!-- 自定义地图输入区 -->
   <div id="custom-map-container">
     <textarea id="map-input" placeholder="在此粘贴或输入地图"></textarea>
     <button id="btn-load-map">加载地图</button>
   </div>
 
-  <!-- 游戏区和状态提示 -->
+  <!-- 游戏地图 -->
   <div id="game-board"></div>
+
+  <!-- 下方状态提示 -->
   <p id="status"></p>
 
+  <!-- 下方手动操作：上下左右 + 撤回 + 重玩 -->
+  <div id="manual-controls">
+    <div id="arrow-container">
+      <!-- 留空占位 -->
+      <div></div>
+      <button id="btn-up">上</button>
+      <div></div>
+
+      <button id="btn-left">左</button>
+      <div></div>
+      <button id="btn-right">右</button>
+
+      <div></div>
+      <button id="btn-down">下</button>
+      <div></div>
+    </div>
+
+    <div id="side-buttons">
+      <button id="btn-undo">撤回</button>
+      <button id="btn-restart">重玩</button>
+    </div>
+  </div>
+
 <script>
-/* 
-  使用“双层地图”：
-    floorMap[y][x]: 记录 (#, _, -, .)
-    objMap[y][x]:   记录 (@, $, 或 ' ')
-  当地图出现'*' => 目标点上有箱子 => floorMap='.', objMap='$'.
-  胜利后禁止继续移动，但可以允许“撤回”。
-  撤回功能：记录每次移动前后的状态，点击“撤回到上一步”时回到上一次状态。
+/*
+  基于“可撤回 + 自定义地图”版本，并添加：
+  1) 下方四向按钮 (上下左右)
+  2) “撤回” & “重玩” 按钮放在右侧
+  3) 记录当前关卡文本，以便“重玩”回到初始状态
 */
 
-/** —— 6 个内置关卡 —— */
+/** —— 6 个内置关卡文本 —— */
 const level1Text = [
 "######",
 "#---.#",
@@ -224,30 +301,25 @@ const level6Text = [
 "__############"
 ].join("\n");
 
-/** —— 全局数据 —— */
+/** 全局数据 */
 let floorMap = [];  
 let objMap   = [];  
 let rows = 0, cols = 0;  
 let playerX = 0, playerY = 0;  
-let gameWon = false; // 若胜利，则禁止移动
+let gameWon = false; // 胜利后禁止移动
 
-/** 
- * 撤回栈，用于记录每次有效移动。
- * 每次移动时保存：{ playerOldX, playerOldY, playerNewX, playerNewY, boxOldX, boxOldY, boxNewX, boxNewY }
- * 若本次移动没有推箱子，则 boxOldX = boxOldY = boxNewX = boxNewY = null
- */
-let undoStack = [];
+let undoStack = [];  // 用于“撤回”的移动记录
+let currentLevelText = ""; // 用于“重玩”当前关卡
 
-/**
- * 从文本加载关卡并解析成 floorMap + objMap
- * @param {string} mapText 多行字符串
- */
+/** 载入关卡并解析 */
 function loadLevelFromText(mapText) {
   gameWon = false;
-  undoStack = []; // 清空撤回栈
+  undoStack = [];
+  currentLevelText = mapText; // 记录本次关卡文本
+
   const lines = mapText.replace(/\r/g, "").split("\n");
   rows = lines.length;
-  cols = lines[0] ? lines[0].length : 0;
+  cols = lines[0]?.length || 0;
 
   floorMap = [];
   objMap   = [];
@@ -261,7 +333,6 @@ function loadLevelFromText(mapText) {
     for (let x = 0; x < cols; x++) {
       const ch = line[x] || " ";
 
-      // 解析底层与上层
       if (ch === '#') {
         floorMap[y][x] = '#';  
         objMap[y][x]   = ' ';
@@ -275,7 +346,7 @@ function loadLevelFromText(mapText) {
         floorMap[y][x] = '-';  
         objMap[y][x]   = ' ';
       } else if (ch === '@') {
-        floorMap[y][x] = '-';  
+        floorMap[y][x] = '-';
         objMap[y][x]   = '@';
         if (playerX < 0) {
           playerX = x;
@@ -285,18 +356,17 @@ function loadLevelFromText(mapText) {
         floorMap[y][x] = '-'; 
         objMap[y][x]   = '$';
       } else if (ch === '*') {
-        // 初始箱子在目标点上
-        floorMap[y][x] = '.'; 
+        // 箱子在目标点
+        floorMap[y][x] = '.';
         objMap[y][x]   = '$';
       } else {
-        // 其余视为空地
         floorMap[y][x] = '-';
         objMap[y][x]   = ' ';
       }
     }
   }
 
-  // 设置游戏区域“网格行/列”
+  // 设置地图网格大小
   const board = document.getElementById("game-board");
   board.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
   board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -304,7 +374,7 @@ function loadLevelFromText(mapText) {
   drawBoard();
 }
 
-/** 绘制地图（依次渲染 floorMap + objMap） */
+/** 绘制地图 */
 function drawBoard() {
   const board = document.getElementById("game-board");
   board.innerHTML = "";
@@ -314,10 +384,10 @@ function drawBoard() {
       const tile = document.createElement("div");
       tile.classList.add("tile");
 
-      const fch = floorMap[y][x];  // 底层字符
-      const och = objMap[y][x];    // 上层字符
+      const fch = floorMap[y][x];
+      const och = objMap[y][x];
 
-      // —— 渲染底层 —— //
+      // —— 底层 —— //
       if (fch === '#') {
         tile.classList.add("wall");
       } else if (fch === '_') {
@@ -325,14 +395,13 @@ function drawBoard() {
       } else if (fch === '-') {
         tile.classList.add("floor");
       } else if (fch === '.') {
-        tile.classList.add("goal"); // 红点
+        tile.classList.add("goal");
       }
 
-      // —— 渲染上层 —— //
+      // —— 上层 —— //
       if (och === '@') {
         tile.classList.add("player");
       } else if (och === '$') {
-        // 如果底层是 '.' => 箱子叠在目标点上
         if (fch === '.') {
           tile.classList.add("box-on-goal");
         } else {
@@ -347,22 +416,23 @@ function drawBoard() {
   checkWin();
 }
 
-/** 检查是否所有箱子都在目标点：如果 objMap 中无 '$'，则胜利 */
+/** 胜利判定：地图中无 '$' 即胜利 */
 function checkWin() {
-  let foundBox = false;
+  let hasBox = false;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       if (objMap[y][x] === '$') {
-        foundBox = true;
+        hasBox = true;
         break;
       }
     }
-    if (foundBox) break;
+    if (hasBox) break;
   }
+
   const statusEl = document.getElementById("status");
-  if (!foundBox) {
-    statusEl.textContent = "恭喜，所有箱子已推到目标点！(可按撤回返回上一步)";
-    gameWon = true; // 禁止继续移动 (但可选择是否允许撤回)
+  if (!hasBox) {
+    statusEl.textContent = "恭喜，所有箱子都推到目标点！(可按撤回返回上一步)";
+    gameWon = true;
   } else {
     statusEl.textContent = "";
   }
@@ -370,7 +440,7 @@ function checkWin() {
 
 /** 移动玩家 (dx, dy) */
 function movePlayer(dx, dy) {
-  if (gameWon) return; // 已胜利，不可再移动（若不想允许撤回，可也在撤回里加判断）
+  if (gameWon) return; // 胜利后禁止移动
 
   const newX = playerX + dx;
   const newY = playerY + dy;
@@ -378,14 +448,13 @@ function movePlayer(dx, dy) {
   // 越界检查
   if (newY < 0 || newY >= rows || newX < 0 || newX >= cols) return;
 
-  // 如果底层是墙(#)或墙外(_)，则无法走
+  // 墙/墙外 不可通过
   const floorChar = floorMap[newY][newX];
   if (floorChar === '#' || floorChar === '_') return;
 
-  // 查看上层是否有箱子
   const targetObj = objMap[newY][newX];
-  
-  // 准备记录本次移动信息
+
+  // 每次移动都记录，用于撤回
   let moveRecord = {
     playerOldX: playerX,
     playerOldY: playerY,
@@ -398,78 +467,77 @@ function movePlayer(dx, dy) {
   };
 
   if (targetObj === ' ') {
-    // 无箱子 -> 直接走
+    // 直接走
     objMap[playerY][playerX] = ' ';
     objMap[newY][newX]       = '@';
-    // 更新玩家坐标
     moveRecord.playerNewX = newX;
     moveRecord.playerNewY = newY;
+
     playerX = newX;
     playerY = newY;
 
-    // 压入撤回栈
     undoStack.push(moveRecord);
 
   } else if (targetObj === '$') {
     // 推箱子
     const boxNextX = newX + dx;
     const boxNextY = newY + dy;
-    // 越界/墙/另一箱子 -> 推不动
     if (boxNextY < 0 || boxNextY >= rows || boxNextX < 0 || boxNextX >= cols) return;
     if (floorMap[boxNextY][boxNextX] === '#' || floorMap[boxNextY][boxNextX] === '_') return;
     if (objMap[boxNextY][boxNextX] === '$' || objMap[boxNextY][boxNextX] === '@') return;
 
-    // 可以推
-    objMap[playerY][playerX] = ' ';  // 玩家离开
-    objMap[newY][newX]       = '@';  // 玩家到箱子原位置
-    objMap[boxNextY][boxNextX] = '$';// 箱子前进
+    // 推动
+    objMap[playerY][playerX] = ' ';
+    objMap[newY][newX]       = '@';
+    objMap[boxNextY][boxNextX] = '$';
 
-    // 记录玩家新坐标
     moveRecord.playerNewX = newX;
     moveRecord.playerNewY = newY;
-    // 记录箱子的前后位置
     moveRecord.boxOldX = newX;
     moveRecord.boxOldY = newY;
     moveRecord.boxNewX = boxNextX;
     moveRecord.boxNewY = boxNextY;
 
-    // 更新玩家坐标
     playerX = newX;
     playerY = newY;
 
-    // 压入撤回栈
     undoStack.push(moveRecord);
   }
 
   drawBoard();
 }
 
-/** 撤回到上一步：从撤回栈中取出最后一条记录，反向还原 */
+/** 撤回到上一步 */
 function undoMove() {
-  if (undoStack.length === 0) return; // 无法撤回
+  if (undoStack.length === 0) return;
+  const last = undoStack.pop();
 
-  const lastMove = undoStack.pop();
-  // 还原玩家位置
-  objMap[lastMove.playerNewY][lastMove.playerNewX] = ' ';
-  objMap[lastMove.playerOldY][lastMove.playerOldX] = '@';
-  playerX = lastMove.playerOldX;
-  playerY = lastMove.playerOldY;
+  // 还原玩家
+  objMap[last.playerNewY][last.playerNewX] = ' ';
+  objMap[last.playerOldY][last.playerOldX] = '@';
+  playerX = last.playerOldX;
+  playerY = last.playerOldY;
 
-  // 若本次有推箱子，则还原箱子位置
-  if (lastMove.boxOldX !== null) {
-    // 当前箱子在 boxNewX, boxNewY
-    objMap[lastMove.boxNewY][lastMove.boxNewX] = ' ';
-    objMap[lastMove.boxOldY][lastMove.boxOldX] = '$';
+  // 还原箱子
+  if (last.boxOldX !== null) {
+    objMap[last.boxNewY][last.boxNewX] = ' ';
+    objMap[last.boxOldY][last.boxOldX] = '$';
   }
 
-  // 撤回后，如原本是胜利状态，也将其取消
+  // 取消胜利状态（若本关原本已胜利）
   gameWon = false;
   document.getElementById("status").textContent = "";
 
   drawBoard();
 }
 
-/* —— 键盘监听：上下左右 —— */
+/** 重玩当前关卡（回到初始状态） */
+function restartLevel() {
+  if (!currentLevelText) return;
+  loadLevelFromText(currentLevelText);
+}
+
+/* ========== 键盘监听 ========== */
 document.addEventListener("keydown", (e) => {
   switch (e.key) {
     case "ArrowUp":
@@ -489,7 +557,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-/* —— 6 个内置关卡按钮 —— */
+/* ========== 顶部按钮：加载关卡1-6 & 自定义地图 ========== */
 document.getElementById("btn-level1").addEventListener("click", () => {
   loadLevelFromText(level1Text);
 });
@@ -509,7 +577,6 @@ document.getElementById("btn-level6").addEventListener("click", () => {
   loadLevelFromText(level6Text);
 });
 
-/* —— 自定义地图：点击按钮时展开/收起文本框 —— */
 const btnShowCustomMap = document.getElementById("btn-show-custom-map");
 const customMapContainer = document.getElementById("custom-map-container");
 btnShowCustomMap.addEventListener("click", () => {
@@ -520,7 +587,6 @@ btnShowCustomMap.addEventListener("click", () => {
   }
 });
 
-/* —— 从文本框加载地图 —— */
 document.getElementById("btn-load-map").addEventListener("click", () => {
   const mapText = document.getElementById("map-input").value;
   if (!mapText.trim()) {
@@ -530,12 +596,31 @@ document.getElementById("btn-load-map").addEventListener("click", () => {
   loadLevelFromText(mapText);
 });
 
-/* —— 撤回到上一步 —— */
+/* ========== 下方按钮：上下左右、撤回、重玩 ========== */
+/* —— 上下左右 —— */
+document.getElementById("btn-up").addEventListener("click", () => {
+  movePlayer(0, -1);
+});
+document.getElementById("btn-down").addEventListener("click", () => {
+  movePlayer(0, 1);
+});
+document.getElementById("btn-left").addEventListener("click", () => {
+  movePlayer(-1, 0);
+});
+document.getElementById("btn-right").addEventListener("click", () => {
+  movePlayer(1, 0);
+});
+
+/* —— 撤回和重玩 —— */
 document.getElementById("btn-undo").addEventListener("click", () => {
   undoMove();
 });
+document.getElementById("btn-restart").addEventListener("click", () => {
+  restartLevel();
+});
 
-// 启动时，默认不加载任何关卡，文本框隐藏；等待用户点击按钮
+/* 启动时默认不加载关卡、文本框隐藏 */
+customMapContainer.style.display = "none";
 </script>
 </body>
 </html>
