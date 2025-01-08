@@ -2,25 +2,35 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>推箱子游戏 - 可撤回 + 自定义地图 + 按钮操作</title>
+  <title>推箱子游戏</title>
   <style>
     /* —— 基本样式 —— */
     body {
-      margin: 0;
-      padding: 0;
-      text-align: center;
-      background-color: #f4f4f9;
-      font-family: Arial, sans-serif;
-      overflow-x: hidden; /* 避免出现水平滚动条 */
-    }
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  background-color: #f4f4f9; /* 背景色 */
+  font-family: Arial, sans-serif;
+  overflow-x: hidden; /* 禁止水平滚动条 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;      /* 让内容填满整个屏幕 */
+}
     h1 {
       margin: 20px 0;
     }
 
     /* —— 按钮区域（顶部） —— */
     #controls {
-      margin-bottom: 10px;
-    }
+  margin-top: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+
     button {
       margin: 5px;
       padding: 8px 16px;
@@ -46,13 +56,20 @@
       设为 80vw 宽，不超过最大宽度 900px，避免出现滚动条。
     */
     #game-board {
-      width: 80vw;
-      max-width: 900px;
-      margin: 20px auto;
-      display: grid;
-      gap: 1px;
-      background-color: #bbb;
-    }
+  width: 80vw;              /* 地图宽度占屏幕的 80% */
+  max-width: 900px;         /* 最大宽度限制 */
+  height: 66vh;             /* 高度固定为屏幕的上方三分之二 */
+  max-height: 66vh;         /* 限制最大高度 */
+  margin: 20px auto;        /* 居中 */
+  display: grid;            /* 网格布局 */
+  gap: 1px;                 /* 网格间隙 */
+  background-color: #e0e0e0;   /* 背景色 */
+  justify-content: center;  /* 水平居中 */
+  align-content: center;    /* 垂直居中 */
+  overflow: hidden;         /* 防止超出容器 */
+  box-sizing: border-box;   /* 包括内边距和边框计算尺寸 */
+}
+
     /* 每个网格保持正方形，需要现代浏览器支持 aspect-ratio */
     .tile {
       aspect-ratio: 1 / 1;
@@ -146,8 +163,8 @@
     /* —— 四向按钮采用 3×3 网格的布局（十字形） —— */
     #arrow-container {
       display: grid;
-      grid-template-columns: 80px 80px 80px;
-      grid-template-rows: 80px 80px 80px;
+      grid-template-columns: 50px 50px 50px;
+      grid-template-rows: 50px 50px 50px;
       gap: 10px;
       align-items: center;
       justify-items: center;
@@ -247,12 +264,12 @@ const level1Text = [
 ].join("\n");
 
 const level2Text = [
-"#####-",
-"#..-#-",
+"#####_",
+"#..-#_",
 "#-@$##",
 "#-$--#",
 "##---#",
-"-#####"
+"_#####"
 ].join("\n");
 
 const level3Text = [
@@ -265,11 +282,11 @@ const level3Text = [
 ].join("\n");
 
 const level4Text = [
-"--#####-",
-"###---#-",
-"#.@$--#-",
-"###-$.#-",
-"#.##$-#-",
+"__#####_",
+"###---#_",
+"#.@$--#_",
+"###-$.#_",
+"#.##$-#_",
 "#-#-.-##",
 "#$-*$$.#",
 "#---.--#",
@@ -317,7 +334,7 @@ let currentLevelText = ""; // 用于“重玩”当前关卡
 function loadLevelFromText(mapText) {
   gameWon = false;
   undoStack = [];
-  currentLevelText = mapText; // 记录本次关卡文本
+  currentLevelText = mapText; // 保存当前地图文本
 
   const lines = mapText.replace(/\r/g, "").split("\n");
   rows = lines.length;
@@ -336,16 +353,16 @@ function loadLevelFromText(mapText) {
       const ch = line[x] || " ";
 
       if (ch === '#') {
-        floorMap[y][x] = '#';  
+        floorMap[y][x] = '#';
         objMap[y][x]   = ' ';
       } else if (ch === '_') {
-        floorMap[y][x] = '_';  
+        floorMap[y][x] = '_';
         objMap[y][x]   = ' ';
       } else if (ch === '.') {
-        floorMap[y][x] = '.';  
+        floorMap[y][x] = '.';
         objMap[y][x]   = ' ';
       } else if (ch === '-') {
-        floorMap[y][x] = '-';  
+        floorMap[y][x] = '-';
         objMap[y][x]   = ' ';
       } else if (ch === '@') {
         floorMap[y][x] = '-';
@@ -355,10 +372,9 @@ function loadLevelFromText(mapText) {
           playerY = y;
         }
       } else if (ch === '$') {
-        floorMap[y][x] = '-'; 
+        floorMap[y][x] = '-';
         objMap[y][x]   = '$';
       } else if (ch === '*') {
-        // 箱子在目标点
         floorMap[y][x] = '.';
         objMap[y][x]   = '$';
       } else {
@@ -368,12 +384,46 @@ function loadLevelFromText(mapText) {
     }
   }
 
-  // 设置地图网格大小
+  // 获取 game-board 容器
   const board = document.getElementById("game-board");
+
+  // 设置网格行和列
   board.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
   board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
+  // 动态调整单元格大小，使所有单元格适配容器
+  setDynamicCellSize(board);
+
+  // 渲染地图
   drawBoard();
+}
+
+/**
+ * 动态调整单元格大小，确保所有单元格都显示在 game-board 容器内
+ */
+ function setDynamicCellSize(board) {
+  // 获取 game-board 容器的实际宽高
+  const boardHeight = board.offsetHeight || board.clientHeight; // 容器的高度
+  const boardWidth = board.offsetWidth || board.clientWidth;    // 容器的宽度
+
+  if (boardHeight === 0 || boardWidth === 0) {
+    // 如果尚未渲染完成，使用默认值并等待渲染
+    requestAnimationFrame(() => setDynamicCellSize(board));
+    return;
+  }
+
+  // 根据 game-board 容器计算单元格大小
+  const cellHeight = Math.floor(boardHeight / rows); // 单元格高度
+  const cellWidth = Math.floor(boardWidth / cols);   // 单元格宽度
+  const cellSize = Math.min(cellHeight, cellWidth);  // 单元格的最大大小
+
+  // 设置单元格大小，确保所有单元格都显示在容器内
+  board.style.gridAutoRows = `${cellSize}px`;
+  board.style.gridAutoColumns = `${cellSize}px`;
+
+    // 设置网格行和列，确保地图充满容器
+    board.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+  board.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
 }
 
 /** 绘制地图 */
@@ -557,6 +607,13 @@ document.addEventListener("keydown", (e) => {
     default:
       break;
   }
+});
+
+
+// 监听窗口大小变化
+window.addEventListener("resize", () => {
+  const board = document.getElementById("game-board");
+  setDynamicCellSize(board); // 调整单元格大小
 });
 
 /* ========== 顶部按钮：加载关卡1-6 & 自定义地图 ========== */
