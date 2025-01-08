@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻木块游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        #game-container {
+            display: grid;
+            grid-template-columns: repeat(12, 40px);
+            grid-gap: 2px;
+            margin-top: 20px;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: black;
+        }
+        .ground {
+            background-color: #FFFFFF;
+        }
+        .wall {
+            background-color: #A9A9A9;
+        }
+        .block {
+            background-color: #8B4513;
+        }
+        .goal {
+            background-color: #dd4816;
+        }
+        .start {
+            background-color: #4952b5;
+        }
+        .marker {
+            background-color: #FFEB3B;
+            color: black;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 18px;
+            color: red;
+            visibility: hidden;
+            text-align: center;
+}
+#message2 {
+            margin-top: 20px;
+            font-size: 18px;
+            color: red;
+            visibility: hidden;
+            text-align: center;
+}
+        #victory {
+            margin-top: 20px;
+            font-size: 24px;
+            color: green;
+            display: none;
+        }
+        #victory img {
+            width: 100px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="margin-top: 10px; font-size: 36px; color: #333; text-align: center;">翻木块游戏</h1>
+    <div id="button-container">
+        <button id="load-level1">加载关卡1</button>
+        <button id="load-level2">加载关卡2</button>
+        <button id="load-level3">加载关卡3</button>
+        <button id="load-level4">加载关卡4</button>
+        <button id="load-level5">加载关卡5</button>
+        <button id="load-level6">加载关卡6</button>
+    </div>
+    <div>
+        <button id="mark-waypoint">标记途径点</button>
+        <button id="continue-waypoint">从途径点继续</button>
+        <button id="return-to-goal">从终点返回</button>
+    </div>
+    <div id="game-container"></div>
+    <div id="message">无法翻滚</div>
+    <div id="message2">无法翻滚</div>
+    <div id="victory">
+        恭喜你，游戏胜利！
+        <img src="huanhu.png">
+    </div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
+        <div style="display: flex; justify-content: center; gap: 10px;">
+            <button id="move-up" style="width: 60px; height: 60px; font-size: 24px;">↑</button>
+        </div>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+            <button id="move-left" style="width: 60px; height: 60px; font-size: 24px;">←</button>
+            <button id="move-down" style="width: 60px; height: 60px; font-size: 24px;">↓</button>
+            <button id="move-right" style="width: 60px; height: 60px; font-size: 24px;">→</button>
+        </div>
+    </div>
+
+</body>
+
+    <script>
+        const level1Map = [
+            ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+            ['#', '-', '-', '-', '#', '#', '#', '#', '#', '#', '#', '#'],
+            ['#', '-', 'o', '-', '-', '-', '-', '#', '#', '#', '#', '#'],
+            ['#', '-', '-', '-', '-', '-', '-', '-', '-', '-', '#', '#'],
+            ['#', '#', '-', '-', '-', '-', '-', '-', '-', '-', '-', '#'],
+            ['#', '#', '#', '#', '#', '#', '-', '-', '@', '-', '-', '#'],
+            ['#', '#', '#', '#', '#', '#', '#', '-', '-', '-', '#', '#'],
+            ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+        ];
+
+        const level2Map = [
+            ['#', '#', '#', '#', '#', '#', '#', '#', '#'],
+            ['#', '-', '-', '@', '#', '-', 'o', '-', '#'],
+            ['#', '-', '-', '-', '#', '-', '-', '-', '#'],
+            ['#', '-', '-', '#', '-', '-', '-', '#', '#'],
+            ['#', '-', '-', '-', '-', '-', '-', '-', '#'],
+            ['#', '-', '-', '-', '#', '-', '-', '-', '#'],
+            ['#', '#', '#', '#', '#', '#', '#', '#', '#']
+        ];
+
+        const level3Map = [
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '-', '-', '-', '-', '-', '-', '-', '#', '#'],
+    ['#', '-', '-', '-', '-', '#', '#', '-', '-', '-', '#', '#', '-', '-', '#', '#'],
+    ['#', '-', '-', '-', '-', '-', '-', '-', '-', '-', '#', '#', '-', '-', '-', '#'],
+    ['#', '-', 'o', '-', '-', '#', '#', '#', '#', '#', '#', '#', '-', '-', '@', '#'],
+    ['#', '-', '-', '-', '-', '#', '#', '#', '#', '#', '#', '#', '-', '-', '-', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '-', '-', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+];
+
+const level4Map = [
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '-', '-', '-', '-', '-', '-', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '-', '#', '#', '-', '-', '-', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '-', '#', '#', '-', '-', '-', '-', '-', '#', '#', '#'],
+    ['#', 'o', '-', '-', '#', '#', '#', '#', '#', '-', '-', '-', '-', '#'],
+    ['#', '#', '-', '-', '-', '#', '#', '#', '#', '-', '-', '@', '-', '#'],
+    ['#', '#', '-', '-', '-', '#', '#', '#', '#', '#', '-', '-', '-', '#'],
+    ['#', '#', '#', '#', '-', '#', '#', '-', '-', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '#', '-', '-', '-', '-', '-', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '#', '-', '-', '-', '-', '-', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '#', '#', '-', '-', '-', '#', '#', '#', '#', '#', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+];
+
+const level5Map = [
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+    ['#', 'o', '-', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '@', '-', '#', '#', '#', '-', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '-', '#', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '-', '-', '#', '#', '-', '#', '#', '-', '#'],
+    ['#', '-', '#', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '#', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+];
+
+const level6Map = [
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+    ['#', '-', '-', '-', '-', '-', '#', '#', '#', '#'],
+    ['#', '-', '#', '#', '-', '-', '#', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '#', '-', '-', '#'],
+    ['#', '-', '@', 'o', '#', '-', '-', '-', '-', '#'],
+    ['#', '#', '-', '-', '#', '-', '-', '-', '#', '#'],
+    ['#', '#', '-', '#', '-', '-', '#', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '#', '-', '-', '-', '#'],
+    ['#', '-', '-', '-', '-', '-', '-', '-', '-', '#'],
+    ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+];
+
+        let mapData = [];
+        let blockState = {
+            row: 0,
+            col: 0,
+            orientation: "upright",
+            gameOver: false
+        };
+
+        let waypoint = null; // 存储途径点
+        let startPosition = null; // 存储起点位置
+        let goalPosition = null; // 存储终点位置
+        let fromGoalState = false; // 是否从终点出发的状态
+
+        function renderMap() {
+            const container = document.getElementById('game-container');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${mapData[0].length}, 40px)`;
+            for (let row = 0; row < mapData.length; row++) {
+                for (let col = 0; col < mapData[row].length; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+
+                    if (mapData[row][col] === '#') {
+                        cell.classList.add('wall');
+                    } else if (mapData[row][col] === '-') {
+                        cell.classList.add('ground');
+                    } else if (mapData[row][col] === '@') {
+                        cell.classList.add('goal');
+                        cell.textContent = '终';
+                    } else if (mapData[row][col] === 'o') {
+                        cell.classList.add('start');
+                        cell.textContent = '起';
+                    } else if (mapData[row][col] === '*') {
+                        cell.classList.add('marker');
+                        cell.textContent = '★';
+                    }else if (startPosition && row === startPosition.row && col === startPosition.col) {
+    cell.classList.add('start');
+    cell.textContent = '起'; // 标注起点
+}
+
+                    if (
+                        (blockState.orientation === "upright" && row === blockState.row && col === blockState.col) ||
+                        (blockState.orientation === "horizontal" &&
+                            ((row === blockState.row && col === blockState.col) ||
+                             (row === blockState.row && col === blockState.col + 1))) ||
+                        (blockState.orientation === "vertical" &&
+                            ((row === blockState.row && col === blockState.col) ||
+                             (row === blockState.row + 1 && col === blockState.col)))
+                    ) {
+                        cell.classList.add('block');
+                        cell.textContent = ''; // 木块不显示字符
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+
+        function canMove(newRow, newCol, orientation) {
+    if (orientation === "upright") {
+        return mapData[newRow] && 
+               (mapData[newRow][newCol] === '-' || 
+                mapData[newRow][newCol] === '@' || 
+                mapData[newRow][newCol] === '*' || 
+                mapData[newRow][newCol] === 'o'); // 起点
+    }
+    if (orientation === "horizontal") {
+        return (
+            mapData[newRow] &&
+            (mapData[newRow][newCol] === '-' || 
+             mapData[newRow][newCol] === '@' || 
+             mapData[newRow][newCol] === '*' || 
+             mapData[newRow][newCol] === 'o') && // 起点
+            (mapData[newRow][newCol + 1] === '-' || 
+             mapData[newRow][newCol + 1] === '@' || 
+             mapData[newRow][newCol + 1] === '*' || 
+             mapData[newRow][newCol + 1] === 'o') // 起点
+        );
+    }
+    if (orientation === "vertical") {
+        return (
+            mapData[newRow] &&
+            mapData[newRow + 1] &&
+            (mapData[newRow][newCol] === '-' || 
+             mapData[newRow][newCol] === '@' || 
+             mapData[newRow][newCol] === '*' || 
+             mapData[newRow][newCol] === 'o') && // 起点
+            (mapData[newRow + 1][newCol] === '-' || 
+             mapData[newRow + 1][newCol] === '@' || 
+             mapData[newRow + 1][newCol] === '*' || 
+             mapData[newRow + 1][newCol] === 'o') // 起点
+        );
+    }
+    return false;
+}
+
+function markWaypoint() {
+    if (blockState.orientation !== "upright") {
+        const messageDiv = document.getElementById('message2');
+        messageDiv.textContent = '只有方块立起的时候才能添加途径点';
+        messageDiv.style.visibility = 'visible';
+        setTimeout(() => {
+            messageDiv.style.visibility = 'hidden';
+        }, 1000);
+        return;
+    }
+    waypoint = { row: blockState.row, col: blockState.col }; // 保存当前方块位置
+    mapData[waypoint.row][waypoint.col] = '*'; // 标记为五角星
+    renderMap();
+}
+
+        function continueWaypoint() {
+            if (waypoint) {
+                blockState = { row: waypoint.row, col: waypoint.col, orientation: "upright", gameOver: false };
+                renderMap();
+            }
+        }
+
+        function showMessage() {
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.visibility = 'visible';
+            setTimeout(() => {
+                messageDiv.style.visibility = 'hidden';
+            }, 1000);
+        }
+
+    function checkVictory() {
+        const { row, col } = blockState;
+
+        if (fromGoalState) {
+            // 从终点出发：回到途径点或起点时胜利
+            if (
+                (mapData[row][col] === '*' || mapData[row][col] === 'o') &&
+                blockState.orientation === "upright"
+            ) {
+                const victoryDiv = document.getElementById('victory');
+                victoryDiv.style.display = 'block';
+                blockState.gameOver = true; // 游戏结束
+
+                // 1.5秒后自动隐藏胜利信息
+                setTimeout(() => {
+                    victoryDiv.style.display = 'none';
+                }, 1500);
+            }
+        } else {
+            // 普通状态：立在终点时胜利
+            if (mapData[row][col] === '@' && blockState.orientation === "upright") {
+                const victoryDiv = document.getElementById('victory');
+                victoryDiv.style.display = 'block';
+                blockState.gameOver = true; // 游戏结束
+
+                // 1.5秒后自动隐藏胜利信息
+                setTimeout(() => {
+                    victoryDiv.style.display = 'none';
+                }, 1500);
+            }
+        }
+    }
+
+        function hideVictory() {
+    const victoryDiv = document.getElementById('victory');
+    victoryDiv.style.display = 'none';
+}
+
+        function roll(direction) {
+            if (blockState.gameOver) return; // 游戏结束后禁止翻滚
+
+            let { row, col, orientation } = blockState;
+            switch (direction) {
+                case "up":
+                    if (orientation === "upright" && canMove(row - 2, col, "vertical")) {
+                        blockState = { row: row - 2, col, orientation: "vertical", gameOver: false };
+                    } else if (orientation === "vertical" && canMove(row - 1, col, "upright")) {
+                        blockState = { row: row - 1, col, orientation: "upright", gameOver: false };
+                    } else if (orientation === "horizontal" && canMove(row - 1, col, "horizontal")) {
+                        blockState = { row: row - 1, col, orientation: "horizontal", gameOver: false };
+                    } else {
+                        showMessage();
+                        return;
+                    }
+                    break;
+                case "down":
+                    if (orientation === "upright" && canMove(row + 1, col, "vertical")) {
+                        blockState = { row: row + 1, col, orientation: "vertical", gameOver: false };
+                    } else if (orientation === "vertical" && canMove(row + 2, col, "upright")) {
+                        blockState = { row: row + 2, col, orientation: "upright", gameOver: false };
+                    } else if (orientation === "horizontal" && canMove(row + 1, col, "horizontal")) {
+                        blockState = { row: row + 1, col, orientation: "horizontal", gameOver: false };
+                    } else {
+                        showMessage();
+                        return;
+                    }
+                    break;
+                case "left":
+                    if (orientation === "upright" && canMove(row, col - 2, "horizontal")) {
+                        blockState = { row, col: col - 2, orientation: "horizontal", gameOver: false };
+                    } else if (orientation === "horizontal" && canMove(row, col - 1, "upright")) {
+                        blockState = { row, col: col - 1, orientation: "upright", gameOver: false };
+                    } else if (orientation === "vertical" && canMove(row, col - 1, "vertical")) {
+                        blockState = { row, col: col - 1, orientation: "vertical", gameOver: false };
+                    } else {
+                        showMessage();
+                        return;
+                    }
+                    break;
+                case "right":
+                    if (orientation === "upright" && canMove(row, col + 1, "horizontal")) {
+                        blockState = { row, col: col + 1, orientation: "horizontal", gameOver: false };
+                    } else if (orientation === "horizontal" && canMove(row, col + 2, "upright")) {
+                        blockState = { row, col: col + 2, orientation: "upright", gameOver: false };
+                    } else if (orientation === "vertical" && canMove(row, col + 1, "vertical")) {
+                        blockState = { row, col: col + 1, orientation: "vertical", gameOver: false };
+                    } else {
+                        showMessage();
+                        return;
+                    }
+                    break;
+            }
+
+
+        mapData[startPosition.row][startPosition.col] = 'o'; // 标注起点
+    
+            renderMap();
+            checkVictory();
+        }
+
+
+        function returnToGoal() {
+    if (goalPosition) {
+        blockState = { row: goalPosition.row, col: goalPosition.col, orientation: "upright", gameOver: false };
+        fromGoalState = true; // 标记为从终点出发的状态
+        renderMap();
+    }
+}
+        function loadLevel1() { loadMap(level1Map); }
+        function loadLevel2() { loadMap(level2Map); }
+        function loadLevel3() { loadMap(level3Map); }
+        function loadLevel4() { loadMap(level4Map); }
+        function loadLevel5() { loadMap(level5Map); }
+        function loadLevel6() { loadMap(level6Map); }
+
+        function loadMap(map) {
+    mapData = map.map(row => row.slice());
+    waypoint = null; // 清空途径点
+    goalPosition = null; // 清空终点位置
+    startPosition = null; // 清空起点位置
+    fromGoalState = false; // 重置状态为非从终点出发
+
+    for (let row = 0; row < mapData.length; row++) {
+        for (let col = 0; col < mapData[row].length; col++) {
+            if (mapData[row][col] === 'o') {
+                blockState = { row, col, orientation: "upright", gameOver: false };
+                startPosition = { row, col }; // 记录起点位置
+                mapData[row][col] = '-'; // 将起点标记为地面
+            }
+            if (mapData[row][col] === '@') {
+                goalPosition = { row, col }; // 记录终点位置
+            }
+        }
+    }
+    renderMap();
+}
+
+        document.getElementById('load-level1').addEventListener('click', loadLevel1);
+        document.getElementById('load-level2').addEventListener('click', loadLevel2);
+        document.getElementById('load-level3').addEventListener('click', loadLevel3);
+        document.getElementById('load-level4').addEventListener('click', loadLevel4);
+        document.getElementById('load-level5').addEventListener('click', loadLevel5);
+        document.getElementById('load-level6').addEventListener('click', loadLevel6);
+        document.getElementById('mark-waypoint').addEventListener('click', markWaypoint);
+        document.getElementById('continue-waypoint').addEventListener('click', continueWaypoint);
+        document.getElementById('return-to-goal').addEventListener('click', returnToGoal);
+
+        document.getElementById('move-up').addEventListener('click', () => roll('up'));
+document.getElementById('move-down').addEventListener('click', () => roll('down'));
+document.getElementById('move-left').addEventListener('click', () => roll('left'));
+document.getElementById('move-right').addEventListener('click', () => roll('right'));
+
+        loadLevel1(); // 默认加载关卡1
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp") roll("up");
+            if (e.key === "ArrowDown") roll("down");
+            if (e.key === "ArrowLeft") roll("left");
+            if (e.key === "ArrowRight") roll("right");
+        });
+    </script>
+</body>
+</html>
