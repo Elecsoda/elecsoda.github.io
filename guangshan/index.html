@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>光栅动画</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 20px;
+      position: relative; /* 让后续的光栅片可定位在body内 */
+    }
+    #drawingCanvas {
+      border: 1px solid #000;
+      cursor: crosshair;
+      background-color: white; /* 主画布白色背景（也可不设，改为在重绘时 fillWhite） */
+      touch-action: none; /* 禁用默认触摸滚动行为 */
+    }
+    .btn {
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      outline: none;
+    }
+    .btn.highlighted {
+      border: 2px solid #ff6600;
+    }
+    /* 颜色按钮 */
+    #blackBtn   { background: #000;  color: #fff; }
+    #redBtn     { background: #f00;  color: #fff; }
+    #blueBtn    { background: #00f;  color: #fff; }
+    #greenBtn   { background: rgb(12, 134, 12);  color: #000; }
+    #yellowBtn  { background: rgb(255, 149, 0);  color: #000; }
+    /* 橡皮擦 */
+    #eraserBtn  { background: #ccc; }
+    /* 清空按钮 */
+    #clearFrameBtn { background: #999;  color: #fff; }
+    #clearAllBtn   { background: #666;  color: #fff; }
+    /* 展示最终 */
+    #showFinalBtn {
+      background: #555; color: #fff;
+    }
+    /* 选中帧时按钮高亮 */
+    .active-frame {
+      border: 2px solid #ff6600;
+    }
+
+
+
+    /* 光栅片 */
+    #rasterOverlay {
+      position: absolute;
+      cursor: move;
+      pointer-events: auto;  /* 让它能被拖拽 */
+      border: 1px dashed #333;
+      display: none; /* 默认隐藏，点击按钮后显示 */
+    }
+  </style>
+</head>
+<body>
+
+<h1>光栅动画制作器</h1>
+
+<!-- 主画布 -->
+<canvas id="drawingCanvas" width="800" height="600"></canvas>
+<br />
+
+<!-- 选择帧数 -->
+<div>
+  帧数：
+  <select id="frameCountSelect">
+    <!-- 2~10 -->
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4" selected>4</option>
+    <option value="5">5</option>
+    <option value="6">6</option>
+    <option value="7">7</option>
+    <option value="8">8</option>
+    <option value="9">9</option>
+    <option value="10">10</option>
+  </select>
+</div>
+<br />
+
+<!-- 颜色按钮 -->
+选择画笔颜色：
+<button id="blackBtn"  class="btn">Black</button>
+<button id="redBtn"    class="btn">Red</button>
+<button id="blueBtn"   class="btn">Blue</button>
+<button id="greenBtn"  class="btn">Green</button>
+<button id="yellowBtn" class="btn">Yellow</button>
+<button id="eraserBtn" class="btn">Eraser</button>
+<br /><br />
+
+<!-- 画笔/橡皮擦粗细 -->
+<div>
+  画笔/橡皮大小：
+  <button class="btn sizeBtn" data-size="3">细</button>
+  <button class="btn sizeBtn" data-size="8">中</button>
+  <button class="btn sizeBtn" data-size="15">粗</button>
+</div>
+<br />
+
+<!-- 帧按钮容器 -->
+选择在第几帧上作画：
+<div id="frameButtons"></div>
+<br />
+<button id="clearFrameBtn" class="btn">清空此帧</button>
+<button id="clearAllBtn"   class="btn">清空所有内容</button>
+<br /><br />
+
+<!-- 展示最终结果 -->
+<button id="showFinalBtn" class="btn">展示完整动画</button>
+<button id="toggleRasterBtn" class="btn">显示/隐藏 光栅片</button>
+<br /><br />
+
+@孙维刚教育研究院
+
+<!-- 光栅片(overlay)画布，比主画布稍大，用于演示拖拽 -->
+<canvas id="rasterOverlay" width="840" height="620"></canvas>
+
+<script>
+/* ======================= 1. 全局变量 & DOM 获取 ======================= */
+const canvas = document.getElementById('drawingCanvas');
+const ctx = canvas.getContext('2d');
+
+let WIDTH = canvas.width;   // 800
+let HEIGHT = canvas.height; // 600
+
+// 缺省帧数(默认为4，与HTML select默认值同步)
+let framesCount = parseInt(document.getElementById('frameCountSelect').value, 10);
+
+// 列总数
+const TOTAL_COLUMNS = 200;  // 你可以固定120列，也可以让用户调
+let COL_WIDTH = WIDTH / TOTAL_COLUMNS;  // 800/120=6.6667
+
+// 当前颜色
+let currentColor = '#000';
+// 当前线宽
+let currentLineWidth = 3;
+
+// 是否正在绘制
+let isDrawing = false;
+
+// 每帧单独记录上一绘制位置
+let lastXArr = [];
+let lastYArr = [];
+
+// 当前帧索引 (0-based)
+let currentFrame = 0;
+
+// 离屏画布及上下文
+let hiddenCanvases = [];
+let hiddenCtxs = [];
+
+
+/* ======================= 2. 初始化函数 ======================= */
+function initFrames(fCount) {
+  // 清空原先数据
+  hiddenCanvases = [];
+  hiddenCtxs = [];
+  lastXArr = Array(fCount).fill(0);
+  lastYArr = Array(fCount).fill(0);
+
+  for (let i = 0; i < fCount; i++) {
+    let offCanvas = document.createElement('canvas');
+    offCanvas.width = WIDTH;
+    offCanvas.height = HEIGHT;
+    hiddenCanvases.push(offCanvas);
+
+    let offCtx = offCanvas.getContext('2d');
+    offCtx.lineWidth = currentLineWidth;
+    offCtx.lineCap = 'round';
+    offCtx.lineJoin = 'round';
+    hiddenCtxs.push(offCtx);
+  }
+  // 重绘帧按钮
+  rebuildFrameButtons(fCount);
+  // 选中第0帧
+  setFrame(0);
+  // 重绘
+  redrawMainCanvas();
+}
+
+/* 动态生成帧选择按钮 */
+const frameBtnContainer = document.getElementById('frameButtons');
+function rebuildFrameButtons(fCount) {
+  frameBtnContainer.innerHTML = ''; // 清空
+  for (let i = 0; i < fCount; i++) {
+    let btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = `Frame ${i+1}`;
+    btn.addEventListener('click', () => setFrame(i));
+    frameBtnContainer.appendChild(btn);
+  }
+}
+
+/* 选择帧 */
+function setFrame(f) {
+  currentFrame = f;
+  // 更新按钮高亮
+  // (更严格做法: frameBtnContainer.children[i]...,这里为了简便，重新构造也行)
+  Array.from(frameBtnContainer.children).forEach((child, idx) => {
+    if (idx === f) child.classList.add('active-frame');
+    else child.classList.remove('active-frame');
+  });
+  redrawMainCanvas();
+}
+
+/* 选择颜色 */
+const colorButtons = document.querySelectorAll('#blackBtn, #redBtn, #blueBtn, #greenBtn, #yellowBtn, #eraserBtn');
+const sizeButtons = document.querySelectorAll('.sizeBtn');
+
+// 颜色按钮高亮
+colorButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    colorButtons.forEach((b) => b.classList.remove('highlighted'));
+    btn.classList.add('highlighted');
+    currentColor = btn.id === 'eraserBtn' ? '#fff' : window.getComputedStyle(btn).backgroundColor;
+  });
+});
+document.getElementById('blackBtn').classList.add('highlighted'); // 默认高亮黑色
+
+// 粗细按钮高亮
+sizeButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    sizeButtons.forEach((b) => b.classList.remove('highlighted'));
+    btn.classList.add('highlighted');
+    currentLineWidth = parseInt(btn.dataset.size, 10);
+  });
+});
+sizeButtons[0].classList.add('highlighted'); // 默认高亮细笔
+
+
+// 清空此帧
+document.getElementById('clearFrameBtn').addEventListener('click', () => {
+  const confirmClear = confirm('是否确认清空当前帧内容？');
+  if (confirmClear) {
+    hiddenCtxs[currentFrame].clearRect(0, 0, canvas.width, canvas.height);
+    redrawMainCanvas();
+  }
+});
+
+// 清空所有
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  const confirmClearAll = confirm('是否确认清空所有帧内容？');
+  if (confirmClearAll) {
+    hiddenCtxs.forEach((ctx) => ctx.clearRect(0, 0, canvas.width, canvas.height));
+    redrawMainCanvas();
+  }
+});
+
+/* ======================= 3. 鼠标和触摸事件 ======================= */
+
+// 鼠标事件
+canvas.addEventListener('mousedown', e => {
+  isDrawing = true;
+  lastXArr[currentFrame] = e.offsetX;
+  lastYArr[currentFrame] = e.offsetY;
+});
+
+canvas.addEventListener('mouseup', () => {
+  isDrawing = false;
+});
+
+canvas.addEventListener('mouseout', () => {
+  isDrawing = false;
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!isDrawing) return;
+  let colIndex = Math.floor(e.offsetX / COL_WIDTH);
+  // 该列属于 currentFrame？
+  if (colIndex % framesCount === currentFrame) {
+    let hCtx = hiddenCtxs[currentFrame];
+    hCtx.strokeStyle = currentColor;
+    hCtx.lineWidth = currentLineWidth;
+
+    hCtx.beginPath();
+    hCtx.moveTo(lastXArr[currentFrame], lastYArr[currentFrame]);
+    hCtx.lineTo(e.offsetX, e.offsetY);
+    hCtx.stroke();
+
+    lastXArr[currentFrame] = e.offsetX;
+    lastYArr[currentFrame] = e.offsetY;
+  }
+  redrawMainCanvas();
+});
+
+// 获取触摸点相对于画布的坐标
+function getTouchPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  return {
+    x: touch.clientX - rect.left,
+    y: touch.clientY - rect.top,
+  };
+}
+
+// 触摸事件
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); // 禁用默认行为（如滚动页面）
+  isDrawing = true;
+  const { x, y } = getTouchPos(e);
+  lastXArr[currentFrame] = x;
+  lastYArr[currentFrame] = y;
+});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault(); // 禁用默认行为
+  if (!isDrawing) return;
+  const { x, y } = getTouchPos(e);
+  let colIndex = Math.floor(x / COL_WIDTH);
+  // 该列属于 currentFrame？
+  if (colIndex % framesCount === currentFrame) {
+    let hCtx = hiddenCtxs[currentFrame];
+    hCtx.strokeStyle = currentColor;
+    hCtx.lineWidth = currentLineWidth;
+
+    hCtx.beginPath();
+    hCtx.moveTo(lastXArr[currentFrame], lastYArr[currentFrame]);
+    hCtx.lineTo(x, y);
+    hCtx.stroke();
+
+    lastXArr[currentFrame] = x;
+    lastYArr[currentFrame] = y;
+  }
+  redrawMainCanvas();
+});
+
+canvas.addEventListener('touchend', () => {
+  isDrawing = false;
+});
+
+/* ======================= 4. 重绘主画布 ======================= */
+/**
+ * 思路：逐像素合成所有帧的笔迹。
+ *   - 如果该像素所在列属于 "currentFrame" => 原色
+ *   - 否则 => 叠加80%灰 => (r, g, b) = (r*0.2, g*0.2, b*0.2)
+ *   - 先把主画布涂白
+ */
+function redrawMainCanvas() {
+  // 先创建一个空白(全白)的 imageData
+  let finalImageData = ctx.createImageData(WIDTH, HEIGHT);
+
+  // 填充为纯白
+  for (let i = 0; i < finalImageData.data.length; i += 4) {
+    finalImageData.data[i]   = 255; // R
+    finalImageData.data[i+1] = 255; // G
+    finalImageData.data[i+2] = 255; // B
+    finalImageData.data[i+3] = 255; // A
+  }
+
+  // 合并 framesCount 帧
+  for (let f = 0; f < framesCount; f++) {
+    let fData = hiddenCtxs[f].getImageData(0, 0, WIDTH, HEIGHT).data;
+    // 对图像中每个像素...
+    for (let y = 0; y < HEIGHT; y++) {
+      for (let x = 0; x < WIDTH; x++) {
+        let colIndex = Math.floor(x / COL_WIDTH);
+        if (colIndex % framesCount === f) {
+          let pos = (y * WIDTH + x) * 4;
+          // 读取离屏帧像素
+          let r = fData[pos];
+          let g = fData[pos+1];
+          let b = fData[pos+2];
+          let a = fData[pos+3];
+
+          if (a > 0) {
+            // 写到 finalImageData
+            finalImageData.data[pos]   = r;
+            finalImageData.data[pos+1] = g;
+            finalImageData.data[pos+2] = b;
+            finalImageData.data[pos+3] = a;
+          }
+
+          // 如果 f != currentFrame，就叠加80%灰
+          if (f !== currentFrame) {
+            finalImageData.data[pos]   = Math.round(finalImageData.data[pos]   * 0.3);
+            finalImageData.data[pos+1] = Math.round(finalImageData.data[pos+1] * 0.3);
+            finalImageData.data[pos+2] = Math.round(finalImageData.data[pos+2] * 0.3);
+            finalImageData.data[pos+3] = 200; // 不让它变透明，而是暗化
+          }
+        }
+      }
+    }
+  }
+
+  // 把 finalImageData 画到主画布
+  ctx.putImageData(finalImageData, 0, 0);
+}
+
+
+/* ======================= 5. 展示最终结果(合并所有帧，原色) ======================= */
+function showAllFrames() {
+  let finalImageData = ctx.createImageData(WIDTH, HEIGHT);
+  // 先全白
+  for (let i = 0; i < finalImageData.data.length; i += 4) {
+    finalImageData.data[i]   = 255;
+    finalImageData.data[i+1] = 255;
+    finalImageData.data[i+2] = 255;
+    finalImageData.data[i+3] = 255;
+  }
+  // 再依次合并 framesCount 帧
+  for (let f = 0; f < framesCount; f++) {
+    let fData = hiddenCtxs[f].getImageData(0, 0, WIDTH, HEIGHT).data;
+    for (let y = 0; y < HEIGHT; y++) {
+      for (let x = 0; x < WIDTH; x++) {
+        let colIndex = Math.floor(x / COL_WIDTH);
+        if (colIndex % framesCount === f) {
+          let pos = (y * WIDTH + x) * 4;
+          if (fData[pos+3] > 0) {
+            finalImageData.data[pos]     = fData[pos];
+            finalImageData.data[pos + 1] = fData[pos + 1];
+            finalImageData.data[pos + 2] = fData[pos + 2];
+            finalImageData.data[pos + 3] = fData[pos + 3];
+          }
+        }
+      }
+    }
+  }
+  ctx.putImageData(finalImageData, 0, 0);
+}
+
+
+/* ======================= 6. 颜色 & 粗细 & 其他按钮 ======================= */
+// 颜色按钮
+document.getElementById('blackBtn').onclick  = () => currentColor = '#000';
+document.getElementById('redBtn').onclick    = () => currentColor = '#f00';
+document.getElementById('blueBtn').onclick   = () => currentColor = '#00f';
+document.getElementById('greenBtn').onclick  = () => currentColor = 'rgb(12, 134, 12)';
+document.getElementById('yellowBtn').onclick = () => currentColor = 'rgb(255, 149, 0)';
+
+// 橡皮擦 => 画白色
+document.getElementById('eraserBtn').onclick = () => currentColor = '#fff';
+
+// 粗细按钮
+document.querySelectorAll('.sizeBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentLineWidth = parseInt(btn.dataset.size, 10);
+  });
+});
+
+// "清空此帧"
+const clearFrameBtn = document.getElementById('clearFrameBtn');
+clearFrameBtn.onclick = () => {
+  hiddenCtxs[currentFrame].clearRect(0,0,WIDTH,HEIGHT);
+  redrawMainCanvas();
+};
+
+// "清空所有"
+const clearAllBtn = document.getElementById('clearAllBtn');
+clearAllBtn.onclick = () => {
+  hiddenCtxs.forEach(hCtx => {
+    hCtx.clearRect(0,0,WIDTH,HEIGHT);
+  });
+  redrawMainCanvas();
+};
+
+// "展示完整动画"
+document.getElementById('showFinalBtn').onclick = () => {
+  showAllFrames();
+};
+
+
+/* ======================= 7. 帧数选择下拉框 ======================= */
+document.getElementById('frameCountSelect').addEventListener('change', e => {
+  framesCount = parseInt(e.target.value, 10);
+  initFrames(framesCount);
+});
+
+
+/* ======================= 8. 光栅片(overlay) ======================= */
+/**
+ * 光栅片：黑色竖条与透明竖条交替，条宽等于 COL_WIDTH * 1(或多倍)。
+ * 为了演示，这里让它的宽高 = (WIDTH+40, HEIGHT+20)，方便超出一点画布。
+ * 用户可用鼠标拖拽这个 canvas.
+ */
+
+const rasterCanvas = document.getElementById('rasterOverlay');
+const rasterCtx = rasterCanvas.getContext('2d');
+
+// 是否显示光栅
+let rasterVisible = false;
+// 记录拖动偏移
+let isDraggingRaster = false;
+let rasterOffsetX = 0;
+let rasterOffsetY = 0;
+let dragStartX = 0;
+let dragStartY = 0;
+
+function buildRasterCanvas() {
+  // 清空
+  rasterCtx.clearRect(0,0,rasterCanvas.width, rasterCanvas.height);
+  // 先全透明
+  // 画若干黑色竖条
+  // colIndex % 2 === 0 => black, else => transparent
+  // 这里假设"一帧列" = COL_WIDTH => 1列
+  // 但若 framesCount=4 => 120列 => colIndex mod 4 => ...
+  // 题目说：黑色竖条的宽度与"此帧遮盖竖条"宽度一致(=COL_WIDTH)，透明竖条与"此帧可见列"宽度一致(=COL_WIDTH)，总之是一黑一透明交替
+
+  for (let i = 0; i < TOTAL_COLUMNS*2; i++) { 
+    // 这里 *2 使得宽度超过画布
+    // i 偶数列 => black; i 奇数列 => transparent
+    let xPos = i * COL_WIDTH;
+    if (i % framesCount > 0) {
+      // black
+      rasterCtx.fillStyle = 'rgba(0,0,0,1)';
+      rasterCtx.fillRect(xPos, 0, COL_WIDTH, rasterCanvas.height);
+    } else {
+      // transparent => do nothing
+    }
+  }
+}
+
+// 点击按钮显示/隐藏
+document.getElementById('toggleRasterBtn').addEventListener('click', () => {
+  rasterVisible = !rasterVisible;
+  if (rasterVisible) {
+    // 构建光栅
+    buildRasterCanvas();
+    rasterCanvas.style.display = 'block';
+  } else {
+    rasterCanvas.style.display = 'none';
+  }
+});
+
+// 光栅片的拖拽
+rasterCanvas.addEventListener('mousedown', (e) => {
+  isDraggingRaster = true;
+  dragStartX = e.clientX - rasterOffsetX;
+  dragStartY = e.clientY - rasterOffsetY;
+});
+document.addEventListener('mousemove', (e) => {
+  if (!isDraggingRaster) return;
+  rasterOffsetX = e.clientX - dragStartX;
+  rasterOffsetY = e.clientY - dragStartY;
+  rasterCanvas.style.left = `${rasterOffsetX}px`;
+  rasterCanvas.style.top  = `${rasterOffsetY}px`;
+});
+document.addEventListener('mouseup', () => {
+  isDraggingRaster = false;
+});
+
+
+/* ======================= 9. 启动时初始化 ======================= */
+initFrames(framesCount);
+// 默认隐藏光栅
+rasterCanvas.style.display = 'none';
+rasterCanvas.style.left = '0px';
+rasterCanvas.style.top  = '0px';
+</script>
+</body>
+</html>
