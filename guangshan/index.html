@@ -528,7 +528,7 @@ document.getElementById('toggleRasterBtn').addEventListener('click', () => {
   }
 });
 
-// 光栅片的拖拽
+// 光栅片的拖拽（鼠标支持）
 rasterCanvas.addEventListener('mousedown', (e) => {
   isDraggingRaster = true;
   dragStartX = e.clientX - rasterOffsetX;
@@ -539,12 +539,32 @@ document.addEventListener('mousemove', (e) => {
   rasterOffsetX = e.clientX - dragStartX;
   rasterOffsetY = e.clientY - dragStartY;
   rasterCanvas.style.left = `${rasterOffsetX}px`;
-  rasterCanvas.style.top  = `${rasterOffsetY}px`;
+  rasterCanvas.style.top = `${rasterOffsetY}px`;
 });
 document.addEventListener('mouseup', () => {
   isDraggingRaster = false;
 });
 
+// 光栅片的拖拽（触摸支持）
+rasterCanvas.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // 禁用默认行为（如滚动页面）
+  isDraggingRaster = true;
+  const touch = e.touches[0];
+  dragStartX = touch.clientX - rasterOffsetX;
+  dragStartY = touch.clientY - rasterOffsetY;
+});
+document.addEventListener('touchmove', (e) => {
+  if (!isDraggingRaster) return;
+  e.preventDefault(); // 禁用默认行为
+  const touch = e.touches[0];
+  rasterOffsetX = touch.clientX - dragStartX;
+  rasterOffsetY = touch.clientY - dragStartY;
+  rasterCanvas.style.left = `${rasterOffsetX}px`;
+  rasterCanvas.style.top = `${rasterOffsetY}px`;
+});
+document.addEventListener('touchend', () => {
+  isDraggingRaster = false;
+});
 
 /* ======================= 9. 启动时初始化 ======================= */
 initFrames(framesCount);
