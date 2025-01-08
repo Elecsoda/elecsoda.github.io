@@ -35,7 +35,7 @@
     }
     #map-input {
       width: 90%;
-      height: 200px;
+      height: 100px;
       margin: 10px auto;
       display: block;
       font-family: monospace; /* 保持字符对齐 */
@@ -48,6 +48,7 @@
     #game-board {
       width: 80vw;
       max-width: 900px;
+      max-height: 600px;
       margin: 20px auto;
       display: grid;
       gap: 1px;
@@ -146,9 +147,9 @@
     /* —— 四向按钮采用 3×3 网格的布局（十字形） —— */
     #arrow-container {
       display: grid;
-      grid-template-columns: 50px 50px 50px;
-      grid-template-rows: 50px 50px 50px;
-      gap: 5px;
+      grid-template-columns: 80px 80px 80px;
+      grid-template-rows: 80px 80px 80px;
+      gap: 10px;
       align-items: center;
       justify-items: center;
       /* 再让具体按钮放到对应位置 */
