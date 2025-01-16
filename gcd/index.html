@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>欧几里得算法</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #0d6efd;
+        }
+        #inputForm {
+            margin-bottom: 20px;
+        }
+        #canvas {
+            border: 1px solid #999;
+            display: block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>欧几里得算法</h1>
+
+    <div id="inputForm">
+        <label for="xInput">横向长度 (X):</label>
+        <input type="number" id="xInput" placeholder="如1000" />
+        <label for="yInput">纵向长度 (Y):</label>
+        <input type="number" id="yInput" placeholder="如230" />
+        <button id="startBtn">开始演示</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // 点击“开始演示”后，根据输入的 X 和 Y，执行切割
+        document.getElementById("startBtn").addEventListener("click", () => {
+            const X = parseInt(document.getElementById("xInput").value, 10);
+            const Y = parseInt(document.getElementById("yInput").value, 10);
+
+            if (isNaN(X) || X <= 0 || isNaN(Y) || Y <= 0) {
+                alert("请输入有效的正整数（横向长度X、纵向长度Y）！");
+                return;
+            }
+
+            drawSplitProcess(X, Y);
+        });
+
+        /**
+         * 核心函数：在单个外框内，以“横向或纵向”方式切分 X×Y
+         * 并在出现 remainder=0 时，将本轮正方形的边长作为最终 GCD。
+         */
+        async function drawSplitProcess(X, Y) {
+            // 1. 初始化画布
+            canvas.width = window.innerWidth * 0.9;
+            canvas.height = window.innerHeight * 0.7;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. 计算缩放比例，使 X×Y 不会超出画布
+            const scale = Math.min(
+                canvas.width / (X * 1.1),
+                canvas.height / (Y * 1.1)
+            );
+
+            // 缩放后的像素尺寸
+            const scaledW = X * scale;
+            const scaledH = Y * scale;
+
+            // 让其居中
+            const offsetX = (canvas.width - scaledW) / 2;
+            const offsetY = (canvas.height - scaledH) / 2;
+
+            // 3. 画大外框（X×Y）
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(offsetX, offsetY, scaledW, scaledH);
+
+            // 标注：横向 = X, 纵向 = Y
+            ctx.font = "14px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText(`横向: ${X}`, offsetX + scaledW / 2 - 30, offsetY - 5);
+            ctx.fillText(`纵向: ${Y}`, offsetX - 50, offsetY + scaledH / 2);
+
+            // 4. 剩余可切割区域的坐标与大小（像素）
+            let curX = offsetX;  
+            let curY = offsetY;  
+            let curW = scaledW;  
+            let curH = scaledH;  
+
+            // xVal, yVal 表示“当前横纵方向数值”
+            let xVal = X;
+            let yVal = Y;
+
+            // 用于记录最后一次“刚好整除”时的正方形边长 => 作为 gcd
+            let gcdCandidate = null;
+
+            // 小延时，便于观察切割过程
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            while (true) {
+                // 若有任何一方向为 0，无法继续
+                if (xVal === 0 || yVal === 0) {
+                    break;
+                }
+
+                // 判断是横向切割还是纵向切割
+                if (xVal > yVal) {
+                    // ---------- 横向切割 ----------
+                    // 一次性切出多少个 yVal×yVal
+                    const quotient = Math.floor(xVal / yVal);
+                    const remainder = xVal % yVal;
+
+                    // 本次所要切的正方形边长（数值）
+                    const squareSide = yVal;  
+                    const squareSize = squareSide * scale;
+
+                    // 从左到右依次画出 quotient 块正方形
+                    for (let i = 0; i < quotient; i++) {
+                        const sqX = curX + i * squareSize;
+                        const sqY = curY;
+
+                        const color = getRandomColor();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(sqX, sqY, squareSize, squareSize);
+
+                        // 标注
+                        ctx.font = "12px Arial";
+                        ctx.fillStyle = color;
+                        ctx.fillText(
+                            `${squareSide}×${squareSide}`,
+                            sqX + squareSize / 4,
+                            sqY + squareSize / 2
+                        );
+
+                        await sleep(400);
+                    }
+
+                    // 判断 remainder
+                    if (remainder === 0) {
+                        // **刚好整除** => 当前正方形边长就是 gcd
+                        gcdCandidate = squareSide;
+                        break;
+                    } else {
+                        // 否则更新 xVal => remainder
+                        xVal = remainder;
+
+                        // 剩余区域在右侧
+                        curX += quotient * squareSize;
+                        curW = remainder * scale;
+
+                        await sleep(600);
+                    }
+                } else if (yVal > xVal) {
+                    // ---------- 纵向切割 ----------
+                    // 一次性切出多少个 xVal×xVal
+                    const quotient = Math.floor(yVal / xVal);
+                    const remainder = yVal % xVal;
+
+                    // 本次所要切的正方形边长（数值）
+                    const squareSide = xVal;
+                    const squareSize = squareSide * scale;
+
+                    // 从上到下依次画出 quotient 块正方形
+                    for (let i = 0; i < quotient; i++) {
+                        const sqX = curX;
+                        const sqY = curY + i * squareSize;
+
+                        const color = getRandomColor();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(sqX, sqY, squareSize, squareSize);
+
+                        // 标注
+                        ctx.font = "12px Arial";
+                        ctx.fillStyle = color;
+                        ctx.fillText(
+                            `${squareSide}×${squareSide}`,
+                            sqX + squareSize / 4,
+                            sqY + squareSize / 2
+                        );
+
+                        await sleep(400);
+                    }
+
+                    if (remainder === 0) {
+                        // 整除 => gcdCandidate = xVal
+                        gcdCandidate = squareSide;
+                        break;
+                    } else {
+                        // (yVal => remainder)
+                        yVal = remainder;
+
+                        // 新区域在下方
+                        curY += quotient * squareSize;
+                        curH = remainder * scale;
+
+                        await sleep(600);
+                    }
+                } else {
+                    // xVal == yVal => 正方形
+                    gcdCandidate = xVal; // 直接切一个 xVal×xVal
+                    const squareSize = xVal * scale;
+
+                    const color = getRandomColor();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(curX, curY, squareSize, squareSize);
+
+                    ctx.font = "12px Arial";
+                    ctx.fillStyle = color;
+                    ctx.fillText(
+                        `${xVal}×${xVal}`,
+                        curX + squareSize / 4,
+                        curY + squareSize / 2
+                    );
+
+                    // 切完即结束
+                    xVal = 0;
+                    yVal = 0;
+                    break;
+                }
+            }
+
+            // 如果循环因 remainder=0 结束，gcdCandidate 是本次边长
+            // 若 remainder 还没等于0 就 xVal=0 || yVal=0 退出了，说明 gcd=非0那一维
+            let gcd = gcdCandidate;
+            if (!gcdCandidate) {
+                // gcdCandidate 为 null => remainder 始终不为 0，但切到最后 xVal=0 || yVal=0
+                gcd = (xVal === 0 ? Math.abs(yVal) : Math.abs(xVal));
+                if (gcd === 0) gcd = "???"; // 正常不会出现
+            }
+
+            // 在画布底部标注最大公约数
+            ctx.fillStyle = "green";
+            ctx.font = "20px Arial";
+            ctx.fillText(
+                `最大公约数: ${gcd}`,
+                canvas.width / 2 - 60,
+                canvas.height - 20
+            );
+        }
+
+        // 生成随机颜色，用于区分不同的正方形
+        function getRandomColor() {
+            return "#" + Math.floor(Math.random() * 16777215).toString(16);
+        }
+    </script>
+</body>
+</html>
