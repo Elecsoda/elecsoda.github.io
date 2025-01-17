@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>抓狐狸小游戏</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    label {
+      font-size: 14px;
+      margin-right: 10px;
+    }
+    #startBtn {
+      padding: 6px 15px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #info {
+      margin: 20px 0;
+      white-space: pre-wrap; /* 保留换行 */
+      font-size: 16px;
+      color: #333;
+      min-height: 60px; 
+      padding: 10px;
+      border: 1px dashed #999;
+    }
+    #holes {
+      margin: 20px 0;
+    }
+    .hole {
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      line-height: 60px;
+      border-radius: 50%;
+      border: 2px solid #555;
+      margin: 8px;
+      cursor: pointer;
+      background-color: #eee;
+      font-weight: bold;
+    }
+    .hole:hover {
+      background-color: #ddd;
+    }
+    .hole.disabled {
+      background-color: #f2f2f2;
+      cursor: not-allowed;
+      opacity: 0.4;
+    }
+    #showRecordBtn {
+      margin-top: 20px;
+      padding: 8px 15px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #chooseRecord, #foxRecord {
+      margin-top: 10px;
+      text-align: left;
+      white-space: pre-wrap; /* 保留换行 */
+      color: #333;
+    }
+    .title {
+      font-weight: bold;
+      color: #337ab7;
+      margin-bottom: 5px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>抓狐狸小游戏</h1>
+  <h3>@孙维刚教育研究院</h3>
+  <!-- 选择洞口数量的区域 -->
+  <div class="section">
+    <label for="holeNumSelect">选择洞口数量 (2~10)：</label>
+    <select id="holeNumSelect">
+      <!-- 生成 2 到 10 的选项 -->
+      <script>
+        for (let i = 2; i <= 10; i++) {
+          document.write(`<option value="${i}">${i}</option>`);
+        }
+      </script>
+    </select>
+    <button id="startBtn">开始游戏</button>
+  </div>
+  
+  <!-- 提示信息区域 -->
+  <div id="info">请先选择洞口数量，然后点击“开始游戏”。</div>
+  
+  <!-- 五个洞（或N个洞）区域，游戏开始后再动态生成 -->
+  <div id="holes"></div>
+  
+  <!-- “显示狐狸每天的藏身洞记录”按钮（游戏开始后启用） -->
+  <button id="showRecordBtn" class="hidden">显示狐狸每天的藏身洞记录</button>
+  
+  <!-- 玩家选择记录区 -->
+  <div id="chooseRecord"></div>
+  
+  <!-- 狐狸记录区 -->
+  <div id="foxRecord"></div>
+  
+  <!-- ================= 原始游戏脚本（保持不变） ================= -->
+  <script>
+    // ========== 全局变量 ========== 
+    let HoleNum = 5;              // 默认的洞口数量，可在开始游戏时动态修改
+    let fox = 0;                  // 狐狸当前所在洞（索引 0 ~ HoleNum-1）
+    let Days = 0;                 // 当前是第几天
+    let foxRecord = [];           // 记录狐狸每天所在洞（用 1~HoleNum 表示）
+    let userRecord = [];          // 记录玩家每一天选择了哪个洞
+    let gameOver = false;         // 标记游戏是否结束
+    let gameStarted = false;      // 标记游戏是否已经开始
+    
+    // 获取页面元素
+    const infoDiv = document.getElementById("info");
+    const holesDiv = document.getElementById("holes");
+    const showRecordBtn = document.getElementById("showRecordBtn");
+    const chooseRecordDiv = document.getElementById("chooseRecord");
+    const foxRecordDiv = document.getElementById("foxRecord");
+    
+    // “开始游戏”按钮
+    document.getElementById("startBtn").addEventListener("click", startGame);
+    
+    // “显示狐狸每天的藏身洞记录”按钮
+    showRecordBtn.addEventListener("click", () => {
+      showFoxRecord();
+    });
+    
+    // ========== 函数定义 ========== 
+    
+    // 开始游戏
+    function startGame() {
+      // 读取玩家选择的洞口数量
+      const selectElem = document.getElementById("holeNumSelect");
+      HoleNum = parseInt(selectElem.value, 10);
+      
+      // 初始化游戏变量
+      gameOver = false;
+      gameStarted = true;
+      Days = 0;
+      // 随机生成狐狸初始位置
+      fox = Math.floor(Math.random() * HoleNum);
+      // 记录狐狸今天所在洞
+      foxRecord = [fox + 1];
+      // 玩家每一天检查记录清空
+      userRecord = [];
+      
+      // 更新提示信息
+      updateInfo(`已选择 ${HoleNum} 个洞口。游戏开始！\n点击下面洞口检查，看看狐狸是否在里面。`);
+      
+      // 清空之前的洞按钮
+      holesDiv.innerHTML = "";
+      // 动态生成洞按钮
+      for (let i = 0; i < HoleNum; i++) {
+        const holeBtn = document.createElement("div");
+        holeBtn.className = "hole";
+        holeBtn.textContent = i + 1;    // 显示洞号 (1~HoleNum)
+        holeBtn.addEventListener("click", () => checkHole(i));
+        holesDiv.appendChild(holeBtn);
+      }
+      
+      // 隐藏/禁用 狐狸记录按钮区域及内容
+      showRecordBtn.classList.remove("hidden");
+      showRecordBtn.disabled = false;
+      foxRecordDiv.textContent = "";
+      
+      // 清空玩家选择区
+      chooseRecordDiv.innerHTML = `<div class="title">你的选择记录：</div>`;
+      // 清空狐狸记录区
+      foxRecordDiv.innerHTML = "";
+    }
+    
+    // 当玩家点击检查某个洞时执行
+    function checkHole(holeIndex) {
+      if (!gameStarted || gameOver) {
+        return;
+      }
+      Days += 1; // 新的一天
+      
+      // 记录玩家的选择
+      userRecord.push(holeIndex + 1);
+      showUserRecord(); 
+      
+      let currentInfo = `第 ${Days} 天，你检查了 ${holeIndex + 1} 号洞。\n`;
+      
+      // 判断是否抓到狐狸
+      if (fox === holeIndex) {
+        // 抓到狐狸
+        gameOver = true;
+        currentInfo += `恭喜你！你在第 ${Days} 天于 ${holeIndex + 1} 号洞抓到了狐狸！\n`
+                     + "游戏结束，点击“显示狐狸每天的藏身洞记录”查看详情。";
+        updateInfo(currentInfo);
+        
+        // 禁用所有洞口
+        disableAllHoles();
+      } else {
+        // 没抓到狐狸
+        currentInfo += "很遗憾，今天没有抓住狐狸。\n夜晚狐狸又跳到相邻的洞里……";
+        updateInfo(currentInfo);
+        
+        // 夜晚狐狸行动（跳到相邻洞）
+        moveFox();
+      }
+    }
+    
+    // 狐狸夜晚跳到相邻洞
+    function moveFox() {
+      if (fox === 0) {
+        fox = 1;
+      } else if (fox === HoleNum - 1) {
+        fox = HoleNum - 2;
+      } else {
+        // 随机往左(-1)或右(+1)跳
+        fox += Math.random() < 0.5 ? -1 : 1;
+      }
+      foxRecord.push(fox + 1);
+    }
+    
+    // 禁用所有洞的点击
+    function disableAllHoles() {
+      const holeElems = document.querySelectorAll(".hole");
+      holeElems.forEach(hole => {
+        hole.classList.add("disabled");
+      });
+    }
+    
+    // 更新提示信息
+    function updateInfo(text) {
+      infoDiv.textContent = text;
+    }
+    
+    // 显示玩家每天选择的洞
+    function showUserRecord() {
+      // 先清空
+      chooseRecordDiv.innerHTML = `<div class="title">你的选择记录：</div>`;
+      // 逐行显示
+      userRecord.forEach((holeNum, idx) => {
+        chooseRecordDiv.innerHTML += `第 ${idx + 1} 天：检查了 ${holeNum} 号洞\n`;
+      });
+    }
+    
+    // 显示狐狸每天的藏身洞记录
+    function showFoxRecord() {
+      // 逐行显示狐狸的洞穴记录
+      let text = "狐狸每天的洞穴记录：\n";
+      foxRecord.forEach((holeNum, idx) => {
+        text += `第 ${idx + 1} 天：狐狸在 ${holeNum} 号洞\n`;
+      });
+      foxRecordDiv.textContent = text;
+    }
+  </script>
+  
+  <!-- =================== 新增：蒙特卡洛模拟功能 =================== -->
+  <!-- 1. 新增按钮，用于显示或进入蒙特卡洛模拟 -->
+  <button id="monteCarloBtn">蒙特卡洛模拟</button>
+  
+  <!-- 2. 蒙特卡洛模拟主区域（初始隐藏） -->
+  <div id="mcArea" class="hidden">
+    <h2>蒙特卡洛模拟：抓 10000 只狐狸</h2>
+    <div id="mcInfo" style="white-space: pre-wrap; border:1px dashed #ccc; padding:10px; margin:10px 0;">
+      此处显示模拟提示信息...
+    </div>
+    <!-- 蒙特卡洛的洞口按钮 -->
+    <div id="mcHoles"></div>
+    <!-- 结束模拟按钮 -->
+    <button id="stopMcBtn" class="hidden">停止模拟</button>
+    <!-- 显示蒙特卡洛抓捕记录 -->
+    <div id="mcRecord" style="text-align:left; margin-top:10px; color:#333; white-space: pre-wrap;"></div>
+  </div>
+  
+  <script>
+  /***** 注意：以下脚本为新增，与原脚本没有耦合，不修改原逻辑 *****/
+
+  // 元素引用
+  const monteCarloBtn = document.getElementById("monteCarloBtn");
+  const mcArea = document.getElementById("mcArea");
+  const mcInfo = document.getElementById("mcInfo");
+  const mcHolesDiv = document.getElementById("mcHoles");
+  const stopMcBtn = document.getElementById("stopMcBtn");
+  const mcRecordDiv = document.getElementById("mcRecord");
+
+  // 蒙特卡洛模拟参数
+  let MC_HoleNum = 5;       // 跟随用户在上方选择的洞口数量
+  let Fox_Num = 10000;      // 总狐狸数
+  let foxId_num = [];       // 每个洞当前剩余多少只狐狸
+  let mcDays = 0;           // 模拟的天数
+  let mcGameOver = false;   // 是否结束
+  let mcRecordData = [];    // 用来记录狐狸分布等信息
+
+  // 点击“蒙特卡洛模拟”按钮时，初始化模拟界面
+  monteCarloBtn.addEventListener("click", () => {
+    // 展开蒙特卡洛区域（可反复点击进行重新模拟，也可以改成只初始化一次）
+    if (mcArea.classList.contains("hidden")) {
+      mcArea.classList.remove("hidden");
+      startMonteCarlo();
+    } else {
+      // 如果已显示，就重新开始一次
+      startMonteCarlo();
+    }
+  });
+
+  // 点击“停止模拟”按钮，终止当前的蒙特卡洛模拟
+  stopMcBtn.addEventListener("click", () => {
+    endMonteCarlo(true);
+  });
+
+  // 初始化并开始蒙特卡洛
+  function startMonteCarlo() {
+    // 从原先选择器读取洞口数量
+    const selectElem = document.getElementById("holeNumSelect");
+    MC_HoleNum = parseInt(selectElem.value, 10);
+    
+    mcDays = 0;
+    mcGameOver = false;
+    foxId_num = Array(MC_HoleNum).fill(0);
+    mcRecordData = [];
+
+    // 生成 10000 只狐狸的随机分布
+    for (let i = 0; i < Fox_Num; i++) {
+      const holeIndex = Math.floor(Math.random() * MC_HoleNum);
+      foxId_num[holeIndex]++;
+    }
+
+    // 首日的分布
+    mcRecordData.push([...foxId_num]);
+
+    // 更新提示信息
+    mcInfo.textContent = `当前选择洞口数量：${MC_HoleNum}。\n` 
+      + `初始有 ${Fox_Num} 只狐狸随机分布在这些洞中。\n` 
+      + `点击下方洞口可进行抓捕。`;
+
+    // 重置洞口按钮
+    mcHolesDiv.innerHTML = "";
+    for (let i = 0; i < MC_HoleNum; i++) {
+      const holeBtn = document.createElement("div");
+      holeBtn.className = "hole";
+      holeBtn.textContent = i + 1;
+      holeBtn.addEventListener("click", () => checkHoleMC(i));
+      mcHolesDiv.appendChild(holeBtn);
+    }
+
+    // 显示停止模拟按钮
+    stopMcBtn.classList.remove("hidden");
+    // 清空记录区
+    mcRecordDiv.textContent = "";
+  }
+
+  // 蒙特卡洛：点击洞口，抓狐狸
+  function checkHoleMC(holeIndex) {
+    if (mcGameOver) return;  // 如果已结束，就不再执行
+
+    mcDays++;
+    const caught = foxId_num[holeIndex];   // 在这个洞抓到的狐狸数
+    foxId_num[holeIndex] = 0;             // 被抓到的狐狸就没了
+
+    const restFox = sumArray(foxId_num);  // 剩余狐狸总数
+    // 更新提示
+    let infoText = `第 ${mcDays} 天：\n`
+      + `检查了第 ${holeIndex + 1} 号洞，一次抓到 ${caught} 只狐狸！\n`
+      + `还剩 ${restFox} 只狐狸在逃...\n`;
+
+    // 记录这一天的检查情况
+    mcRecordData.push(`第 ${mcDays} 天检查${holeIndex + 1}号洞，抓到 ${caught} 只`);
+
+    // 如果已经抓完，则游戏结束
+    if (restFox === 0) {
+      // 最后再记录分布情况
+      mcRecordData.push([...foxId_num]);
+      infoText += `\n恭喜！所有狐狸都被抓住啦！`;
+      mcInfo.textContent = infoText;
+      endMonteCarlo(false); // 正常结束
+      return;
+    }
+
+    // 如果还未结束，则夜晚狐狸移动
+    // 复制当前分布，用于计算下一轮
+    const prevFoxId = [...foxId_num];
+    const newFoxId = Array(MC_HoleNum).fill(0);
+
+    for (let hole = 0; hole < MC_HoleNum; hole++) {
+      if (prevFoxId[hole] === 0) continue;
+      if (hole === 0) {
+        // 全往右跳
+        newFoxId[1] += prevFoxId[0];
+      } else if (hole === MC_HoleNum - 1) {
+        // 全往左跳
+        newFoxId[MC_HoleNum - 2] += prevFoxId[MC_HoleNum - 1];
+      } else {
+        // 随机拆分
+        for (let n = 0; n < prevFoxId[hole]; n++) {
+          // 对每只狐狸随机决定跳左还是跳右
+          if (Math.random() < 0.5) {
+            newFoxId[hole - 1]++;
+          } else {
+            newFoxId[hole + 1]++;
+          }
+        }
+      }
+    }
+
+    foxId_num = newFoxId;
+    mcRecordData.push([...foxId_num]);
+
+    // 更新显示
+    mcInfo.textContent = infoText;
+  }
+
+  // 结束蒙特卡洛模拟（手动或自动）
+  function endMonteCarlo(isManual) {
+    mcGameOver = true;
+    stopMcBtn.classList.add("hidden"); // 隐藏停止按钮
+
+    let finalText = "";
+    if (isManual) {
+      // 手动结束
+      const restFox = sumArray(foxId_num);
+      const caughtFox = Fox_Num - restFox;
+      finalText = `\n===== 你共模拟了 ${mcDays} 天 =====\n`
+        + `已抓到 ${caughtFox} 只狐狸，剩余 ${restFox} 只。\n`
+        + `狐狸分布记录及抓捕过程如下：\n`;
+    } else {
+      // 全抓完自动结束
+      finalText = `\n===== 模拟结束，所有狐狸被抓完，共用 ${mcDays} 天 =====\n`
+        + `抓捕过程及狐狸分布记录如下：\n`;
+    }
+
+    // 将 mcRecordData 里的信息输出
+    // mcRecordData 中存储了“初始分布 -> 第1天检查情况 -> 第1天后分布 -> 第2天检查情况 -> ...”
+    // 也可能混有字符串（"第N天检查X号洞"）和数组（具体分布），需要逐条输出
+    const lines = mcRecordData.map((item, idx) => {
+      if (Array.isArray(item)) {
+        // 数组类型：分布情况
+        return `分布： [${item.join(", ")}]`;
+      } else {
+        // 字符串类型：抓捕信息
+        return String(item);
+      }
+    });
+
+    mcRecordDiv.textContent = finalText + lines.join("\n");
+  }
+
+  // 数组求和
+  function sumArray(arr) {
+    return arr.reduce((acc, cur) => acc + cur, 0);
+  }
+  </script>
+</body>
+</html>
