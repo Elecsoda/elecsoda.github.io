@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>三堆牌魔术</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #info {
+      margin-bottom: 10px;
+      font-size: 1rem;
+      color: #333;
+    }
+    .btn {
+      margin: 5px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    /* 顶部初始牌堆区域 */
+    #initialDeck {
+      margin-bottom: 20px;
+      border: 1px dashed #ccc;
+      padding: 10px;
+      min-height: 80px;
+    }
+    .card {
+      border: 1px solid #333;
+      display: inline-block;
+      width: 40px;
+      height: 60px;
+      margin: 4px;
+      text-align: center;
+      line-height: 60px;
+      font-size: 14px;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      user-select: none;
+      position: relative;
+    }
+    .card:hover {
+      background-color: #f9f9f9;
+    }
+    /* 演示模式下，选中的那张牌 */
+    .card-selected {
+      border-color: red;
+      box-shadow: 0 0 6px red;
+    }
+
+    /* 下方分堆区域：左/中/右三块 */
+    #distributionRow {
+      display: flex;
+      gap: 20px;
+    }
+    .column-box {
+      flex: 1;
+      border: 1px solid #ccc;
+      min-height: 550px; /* 可根据实际需求调整 */
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .column-box h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #444;
+    }
+
+    /* 每次分堆，三竖列 */
+    .three-piles {
+      display: flex;
+      gap: 20px;
+    }
+    .pile {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 高亮颜色(仅演示模式下使用) */
+    .chosen-1 {
+      background-color: rgba(0,255,0,0.2); /* 第一次选中 => 浅绿 */
+    }
+    .chosen-2 {
+      background-color: rgba(255,165,0,0.2); /* 第二次选中 => 浅橙 */
+    }
+    .chosen-3 {
+      background-color: rgba(255,0,0,0.2); /* 第三次选中 => 浅红 */
+    }
+
+    /* 在卡片右上角画星标(若被选中次数>=2) */
+    .star-mark::after {
+      content: '★';
+      position: absolute;
+      top: -20px;
+      right: 10px;
+      color: #f00;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+<h1>三堆牌魔术</h1>
+
+<h3>@孙维刚教育研究院</h3>
+
+<div id="info"></div>
+
+<!-- 模式选择按钮 -->
+<button class="btn" id="btnStartCommon">开始游戏(常规)</button>
+<button class="btn" id="btnStartDemo">开始游戏(演示)</button>
+
+<!-- 分堆按钮(第1/2/3次 或 查看结果) -->
+<button class="btn" id="btnDeal" style="display:none;"></button>
+
+<!-- 选择“牌在哪一堆”按钮 -->
+<div id="pileSelectBtns" style="display:none;">
+  <span>你选的牌在哪一堆？</span>
+  <button class="btn" onclick="choosePile(1)">堆1</button>
+  <button class="btn" onclick="choosePile(2)">堆2</button>
+  <button class="btn" onclick="choosePile(3)">堆3</button>
+</div>
+
+<!-- 顶部初始牌堆 -->
+<div id="initialDeck"></div>
+
+<!-- 下方左/中/右三块 -->
+<div id="distributionRow">
+  <div class="column-box">
+    <h2>第一次分堆</h2>
+    <div class="three-piles" id="colLeft"></div>
+  </div>
+  <div class="column-box">
+    <h2>第二次分堆</h2>
+    <div class="three-piles" id="colMiddle"></div>
+  </div>
+  <div class="column-box">
+    <h2>第三次分堆</h2>
+    <div class="three-piles" id="colRight"></div>
+  </div>
+</div>
+
+<script>
+/* ========== 全局变量 ========== */
+let cards = [];           // 当前洗好的 27 张牌
+let step = 0;             // 第几次分堆(1,2,3)
+let chosenCard = null;    // 演示模式下，用户在顶部选中的那张牌(可高亮)
+let isDemoMode = false;   // 是否处于演示模式
+
+// 记录每次分堆的3堆内容： distributionData[i] = [pile1, pile2, pile3]
+let distributionData = [[], [], []];
+
+// 演示模式下，用 highlightCountMap 来标记每张牌被选中几次(1/2/3)
+let highlightCountMap = {}; // { '♠5': 2, ... }
+
+// 与 Python 相同的“将选堆放中间”顺序
+const orderMap = [
+  [1,0,2],
+  [0,1,2],
+  [0,2,1]
+];
+
+// DOM 元素
+const infoEl         = document.getElementById('info');
+const btnStartCommon = document.getElementById('btnStartCommon');
+const btnStartDemo   = document.getElementById('btnStartDemo');
+const btnDeal        = document.getElementById('btnDeal');
+const pileSelectBtns = document.getElementById('pileSelectBtns');
+
+const initialDeckEl  = document.getElementById('initialDeck');
+const colLeftEl      = document.getElementById('colLeft');
+const colMiddleEl    = document.getElementById('colMiddle');
+const colRightEl     = document.getElementById('colRight');
+
+// 事件绑定
+btnStartCommon.addEventListener('click', () => {
+  isDemoMode = false;
+  startGame();
+});
+btnStartDemo.addEventListener('click', () => {
+  isDemoMode = true;
+  startGame();
+});
+
+btnDeal.addEventListener('click', () => {
+  doDeal();
+});
+
+/* ========== 核心逻辑 ========== */
+/** 初始化并开始游戏 */
+function startGame(){
+  step = 0;
+  chosenCard = null;
+  distributionData = [[],[],[]];
+  highlightCountMap = {};
+
+  // 初始化 27 张牌
+  cards = initCards();
+  infoEl.textContent = isDemoMode
+    ? '演示模式：请在上方 27 张牌中点选一张牌(高亮)，然后分堆'
+    : '常规模式：请在心中默记一张牌，然后分堆';
+
+  // 显示“第1次分堆”按钮
+  btnDeal.style.display = 'inline-block';
+  btnDeal.textContent = '第一次分堆';
+  pileSelectBtns.style.display = 'none';
+
+  // 渲染顶部牌堆
+  renderInitialDeck();
+
+  // 清空3列
+  colLeftEl.innerHTML   = '';
+  colMiddleEl.innerHTML = '';
+  colRightEl.innerHTML  = '';
+}
+
+/** 渲染顶部 27 张牌(若是演示模式，可以点击选中) */
+function renderInitialDeck(){
+  initialDeckEl.innerHTML = '';
+  cards.forEach(cardStr=>{
+    const cardDiv = document.createElement('div');
+    cardDiv.className = 'card';
+    cardDiv.textContent = cardStr;
+
+    if(isDemoMode){
+      // 演示模式可点击
+      cardDiv.addEventListener('click', ()=>{
+        // 若之前选过别的牌，则取消其高亮
+        if(chosenCard && chosenCard!==cardStr){
+          let oldSel = initialDeckEl.querySelector('.card-selected');
+          if(oldSel) oldSel.classList.remove('card-selected');
+        }
+        chosenCard = cardStr;
+        cardDiv.classList.add('card-selected');
+        infoEl.textContent = `已选：${chosenCard}。现在点击“第一次分堆”继续`;
+      });
+    }
+
+    initialDeckEl.appendChild(cardDiv);
+  });
+}
+
+/** 执行“第N次分堆” */
+function doDeal(){
+  // 演示模式下，需先选一张牌
+  if(isDemoMode && !chosenCard){
+    alert('请先选中一张牌后再分堆。');
+    return;
+  }
+
+  step++;
+  if(step>3){
+    // 分完3次 => 查看结果
+    infoEl.textContent = `不用怀疑，你选的牌就是：${cards[13]}`;
+    btnDeal.style.display = 'none';
+    pileSelectBtns.style.display = 'none';
+    return;
+  }
+
+  // 分成3堆
+  const p1 = cards.slice(0,9);
+  const p2 = cards.slice(9,18);
+  const p3 = cards.slice(18,27);
+  distributionData[step-1] = [p1, p2, p3];
+
+  // 显示到对应列
+  let targetEl;
+  if(step===1)      targetEl = colLeftEl;
+  else if(step===2) targetEl = colMiddleEl;
+  else if(step===3) targetEl = colRightEl;
+
+  renderThreePiles(step-1, targetEl);
+
+  infoEl.textContent = `第${step}次分堆完成：请选择你牌所在的堆(1/2/3)`;
+  btnDeal.style.display = 'none';
+  pileSelectBtns.style.display = 'inline-block';
+}
+
+/** 将 distributionData[distIndex] 的三堆(各9张)渲染到 container(3竖列) */
+function renderThreePiles(distIndex, container){
+  container.innerHTML = '';
+  let [p1, p2, p3] = distributionData[distIndex];
+
+  [p1,p2,p3].forEach(pileArr=>{
+    const pileDiv = document.createElement('div');
+    pileDiv.className = 'pile';
+
+    pileArr.forEach(cardStr=>{
+      // 生成卡片 DOM
+      const cardDiv = document.createElement('div');
+      cardDiv.className = getCardClassName(cardStr);
+      cardDiv.textContent = cardStr;
+      pileDiv.appendChild(cardDiv);
+    });
+
+    container.appendChild(pileDiv);
+  });
+}
+
+/** 用户选“堆1 / 堆2 / 堆3” => reorder => 三叠发牌 => 并更新演示模式下的高亮计数 */
+function choosePile(pileNum){
+  pileSelectBtns.style.display = 'none';
+
+  // 根据 step-1 找到本次分堆的 piles
+  const distIndex = step-1;
+  let [p1, p2, p3] = distributionData[distIndex];
+  let chosenPile = (pileNum===1 ? p1 : (pileNum===2? p2 : p3));
+
+  // 演示模式下，对 chosenPile 的 9 张牌 highlightCount+1
+  if(isDemoMode){
+    chosenPile.forEach(card=>{
+      if(!highlightCountMap[card]) highlightCountMap[card] = 0;
+      highlightCountMap[card]++;
+    });
+  }
+
+  // reorder + 三叠发牌
+  const idxArr = orderMap[pileNum-1];
+  let newArr = [];
+  for(let i=0; i<3; i++){
+    let start = idxArr[i]*9;
+    let end   = start+9;
+    newArr = newArr.concat(cards.slice(start,end));
+  }
+  newArr = newArr.filter((_,i)=>i%3===0)
+         .concat(newArr.filter((_,i)=>i%3===1))
+         .concat(newArr.filter((_,i)=>i%3===2));
+  cards = newArr;
+
+  // 重新渲染本次分堆(因为 highlightCountMap 更新了)
+  distributionData[distIndex] = [p1, p2, p3]; // 写回(其实没变，但为了保险)
+  let targetEl;
+  if(step===1)      targetEl = colLeftEl;
+  else if(step===2) targetEl = colMiddleEl;
+  else if(step===3) targetEl = colRightEl;
+  renderThreePiles(distIndex, targetEl);
+
+  // 如果想让之前的分堆也更新颜色(若某张牌多次被选中)，可以全部重渲染:
+  // for(let i=0; i<step; i++){
+  //   const tEl = (i===0? colLeftEl : (i===1? colMiddleEl : colRightEl));
+  //   renderThreePiles(i, tEl);
+  // }
+
+  if(step<3){
+    btnDeal.textContent = `第${step+1}次分堆`;
+    btnDeal.style.display = 'inline-block';
+    infoEl.textContent = `第${step}次分堆已完成，点击“第${step+1}次分堆”继续`;
+  } else {
+    // 第3次 => 点击查看结果
+    btnDeal.textContent = '查看结果';
+    btnDeal.style.display = 'inline-block';
+    infoEl.textContent = '点击“查看结果”以查看你选的牌';
+  }
+}
+
+/** 根据 highlightCountMap，决定卡片的样式 */
+function getCardClassName(cardStr){
+  let base = 'card';
+  if(!isDemoMode) return base;  // 常规模式不用高亮
+
+  let c = highlightCountMap[cardStr] || 0;
+  if(c===1)      base += ' chosen-1';
+  else if(c===2) base += ' chosen-2 star-mark'; 
+  else if(c>=3)  base += ' chosen-3 star-mark'; 
+  // star-mark 用来显示右上角星标
+
+  return base;
+}
+
+/* ========== 洗牌函数 ========== */
+function initCards(){
+  let tmp = [];
+  for(let i=1; i<=9; i++){
+    tmp.push('♠'+i);
+    tmp.push('♥'+i);
+    tmp.push('♣'+i);
+  }
+  shuffle(tmp);
+  shuffle(tmp);
+  return tmp;
+}
+function shuffle(arr){
+  for(let i=arr.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+</script>
+</body>
+</html>
