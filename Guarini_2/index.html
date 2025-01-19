@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guarini谜题</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #444;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #555;
+            font-size: 16px;
+            margin: 5px 0 20px;
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .board {
+            display: grid;
+            gap: 5px;
+            padding: 10px;
+            background-color: #eee;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        /* 原3×3棋盘布局 */
+        #board {
+            grid-template-columns: repeat(3, 80px);
+        }
+        /* 新4×3棋盘布局 */
+        #board4 {
+            grid-template-columns: repeat(3, 80px);
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            border: 2px solid #bbb;
+            background-color: #fafafa;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .cell:hover {
+            background-color: #ddd;
+        }
+        .W {
+            color: #000000;
+            font-weight: bold;
+        }
+        .B {
+            color: #000000;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        #steps, 
+        #steps4 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4caf50;
+            color: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        canvas {
+            margin-top: 20px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+<h2>Guarini谜题</h2>
+<p>目标：让黑白骑士互换位置。点击棋子，然后点击空格移动。</p>
+
+<!-- ====== 第 1 部分：原 3×3 棋盘 ====== -->
+<p id="steps">步数: 0</p>
+<div id="game-container">
+    <button onclick="toggleLabels()">显示/隐藏坐标标签</button>
+    <!-- 原 3×3 棋盘 -->
+    <div class="board" id="board">
+        <div class="cell B" data-pos="0,0">♞</div>
+        <div class="cell"   data-pos="0,1"></div>
+        <div class="cell B" data-pos="0,2">♞</div>
+        <div class="cell"   data-pos="1,0"></div>
+        <div class="cell"   data-pos="1,1"></div>
+        <div class="cell"   data-pos="1,2"></div>
+        <div class="cell W" data-pos="2,0">♘</div>
+        <div class="cell"   data-pos="2,1"></div>
+        <div class="cell W" data-pos="2,2">♘</div>
+    </div>
+    <canvas id="graph" width="280" height="280"></canvas>
+</div>
+
+<!-- ====== 第 2 部分：新增 4×3 棋盘 ====== -->
+<p id="steps4">（4×3 新棋盘）步数: 0</p>
+<div id="game-container">
+    <!-- 与原棋盘相似的功能：同样跟随“显示/隐藏坐标标签”一起变化 -->
+    <div class="board" id="board4">
+        <!-- 上行：3 个黑马 -->
+        <div class="cell B" data-pos4="0,0">♞</div>
+        <div class="cell B" data-pos4="0,1">♞</div>
+        <div class="cell B" data-pos4="0,2">♞</div>
+        <!-- 第二、三行：空 -->
+        <div class="cell" data-pos4="1,0"></div>
+        <div class="cell" data-pos4="1,1"></div>
+        <div class="cell" data-pos4="1,2"></div>
+        <div class="cell" data-pos4="2,0"></div>
+        <div class="cell" data-pos4="2,1"></div>
+        <div class="cell" data-pos4="2,2"></div>
+        <!-- 下行：3 个白马 -->
+        <div class="cell W" data-pos4="3,0">♘</div>
+        <div class="cell W" data-pos4="3,1">♘</div>
+        <div class="cell W" data-pos4="3,2">♘</div>
+    </div>
+    <canvas id="graph4" width="280" height="360"></canvas>
+</div>
+
+<script>
+/**************************************************
+ *           第一部分：原 3×3 棋盘逻辑             *
+ **************************************************/
+let board = [
+    ["B1", ".", "B2"],
+    [".",  ".", "."],
+    ["W1", ".", "W2"]
+];
+let selected = null;
+let steps = 0;
+let showLabels = false;
+
+// 仍使用同一组 knightMoves
+const knightMoves = [
+  [ 2,  1], [ 2, -1], [-2,  1], [-2, -1],
+  [ 1,  2], [ 1, -2], [-1,  2], [-1, -2]
+];
+
+const boardElement = document.getElementById("board");
+const stepsElement = document.getElementById("steps");
+const graphCanvas = document.getElementById("graph");
+const ctx = graphCanvas.getContext("2d");
+
+// 3×3 画布的 9 个点坐标
+const points = [
+    { x: 50,  y: 50 },
+    { x: 130, y: 50 },
+    { x: 210, y: 50 },
+    { x: 50,  y: 130},
+    { x: 130, y: 130},
+    { x: 210, y: 130},
+    { x: 50,  y: 210},
+    { x: 130, y: 210},
+    { x: 210, y: 210}
+];
+
+let draggingPoint = null; // 用于拖拽点
+
+// 更新 3×3 棋盘的 DOM 显示
+function updateBoard() {
+    boardElement.querySelectorAll('.cell').forEach((cell, index) => {
+        const [x, y] = cell.getAttribute('data-pos').split(',').map(Number);
+
+        if (showLabels) {
+            // 显示 "B1" / "W2" 或者 cell 索引
+            cell.textContent = board[x][y] !== "." ? board[x][y] : (index + 1);
+        } else {
+            // 显示实际棋子符号 或 空
+            cell.textContent = 
+                board[x][y] === "W1" ? "♘" :
+                board[x][y] === "W2" ? "♘" :
+                board[x][y] === "B1" ? "♞" :
+                board[x][y] === "B2" ? "♞" : "";
+        }
+        cell.className = `cell ${board[x][y][0] || ''}`; // 添加 W/B 类以变色
+    });
+    stepsElement.textContent = `步数: ${steps}`;
+    drawGraph();
+}
+
+// 绘制 3×3 画布上的点与连线
+function drawGraph() {
+    ctx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+    // 先画连线（根据 knightMoves 确定的相邻可走位置）
+    points.forEach((point, i) => {
+        knightMoves.forEach(([dx, dy]) => {
+            const x = Math.floor(i / 3), y = i % 3;
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < 3 && ny >= 0 && ny < 3) {
+                const ni = nx * 3 + ny;
+                ctx.beginPath();
+                ctx.moveTo(point.x, point.y);
+                ctx.lineTo(points[ni].x, points[ni].y);
+                ctx.strokeStyle = "#aaa";
+                ctx.stroke();
+            }
+        });
+    });
+
+    // 再画各个点及骑士符号
+    points.forEach((point, index) => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 12, 0, 2 * Math.PI);
+        const piece = board[Math.floor(index / 3)][index % 3];
+        if (piece === "W1" || piece === "W2") {
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            ctx.fill();
+            ctx.stroke();
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText("♘", point.x - 6, point.y + 6);
+        } else if (piece === "B1" || piece === "B2") {
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            ctx.fill();
+            ctx.stroke();
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText("♞", point.x - 6, point.y + 6);
+        } else {
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "gray";
+            ctx.fill();
+            ctx.stroke();
+        }
+        // 如果显示标签，则画上数字
+        if (showLabels) {
+            ctx.font = "12px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText(index + 1, point.x - 4, point.y - 10);
+        }
+    });
+}
+
+// 点击按钮：显示/隐藏坐标标签
+function toggleLabels() {
+    showLabels = !showLabels;
+    updateBoard();
+    updateBoard4(); // 同步更新 4×3 棋盘
+}
+
+// 3×3 棋盘点击：若已有选中，则尝试移动；否则选中
+boardElement.addEventListener("click", (event) => {
+    const cell = event.target;
+    const [x, y] = cell.getAttribute('data-pos').split(',').map(Number);
+
+    if (selected) {
+        const [sx, sy] = selected;
+        // 判断是否能走
+        if (
+            board[sx][sy] &&
+            board[x][y] === "." &&
+            knightMoves.some(([dx, dy]) => (x === sx + dx && y === sy + dy))
+        ) {
+            board[x][y] = board[sx][sy];
+            board[sx][sy] = ".";
+            steps++;
+            selected = null;
+            updateBoard();
+            // 判断是否完成（黑白互换）
+            // 目标： [["W1",".","W2"],[".",".","."],["B1",".","B2"]]
+            if (JSON.stringify(board) === JSON.stringify([
+                ["W1",".","W2"],
+                [".", ".", "."],
+                ["B1",".","B2"]
+            ])) {
+                alert(`恭喜！你完成了 3×3 棋盘挑战，共用步数：${steps}`);
+            }
+        } else {
+            selected = board[x][y] ? [x, y] : null;
+        }
+    } else {
+        selected = board[x][y] ? [x, y] : null;
+    }
+});
+
+// 处理鼠标/触摸拖拽事件(针对 3×3 canvas)
+graphCanvas.addEventListener("mousedown", startDragging);
+graphCanvas.addEventListener("touchstart", startDragging);
+
+function startDragging(e) {
+    const rect = graphCanvas.getBoundingClientRect();
+    const mouseX = e.offsetX !== undefined 
+        ? e.offsetX 
+        : e.touches[0].clientX - rect.left;
+    const mouseY = e.offsetY !== undefined 
+        ? e.offsetY
+        : e.touches[0].clientY - rect.top;
+
+    draggingPoint = points.find(
+        p => Math.hypot(p.x - mouseX, p.y - mouseY) < 12
+    );
+}
+
+graphCanvas.addEventListener("mousemove", dragPoint);
+graphCanvas.addEventListener("touchmove", dragPoint);
+
+function dragPoint(e) {
+    if (draggingPoint) {
+        e.preventDefault(); // 阻止页面滚动
+        const rect = graphCanvas.getBoundingClientRect();
+        const mouseX = e.offsetX !== undefined 
+            ? e.offsetX 
+            : e.touches[0].clientX - rect.left;
+        const mouseY = e.offsetY !== undefined 
+            ? e.offsetY
+            : e.touches[0].clientY - rect.top;
+        draggingPoint.x = mouseX;
+        draggingPoint.y = mouseY;
+        drawGraph();
+    }
+}
+
+graphCanvas.addEventListener("mouseup", stopDragging);
+graphCanvas.addEventListener("touchend", stopDragging);
+
+function stopDragging() {
+    draggingPoint = null;
+}
+
+// 初始化 3×3 棋盘
+updateBoard();
+
+/*****************************************************
+ *       第二部分：新增 4×3 棋盘 + 路径画布            *
+ *****************************************************/
+
+// 4×3 棋盘初始状态：
+//   第0行: B1 B2 B3
+//   第1行: .  .  .
+//   第2行: .  .  .
+//   第3行: W1 W2 W3
+let board4 = [
+    ["B1","B2","B3"],
+    [".",".","."],
+    [".",".","."],
+    ["W1","W2","W3"]
+];
+let selected4 = null;
+let steps4 = 0;
+const board4Element = document.getElementById("board4");
+const stepsElement4 = document.getElementById("steps4");
+const graphCanvas4 = document.getElementById("graph4");
+const ctx4 = graphCanvas4.getContext("2d");
+
+// 4×3 画布的 12 个点坐标 (从上到下 4 行, 每行 3 个)
+const points4 = [
+    { x:  40, y: 40 },  { x: 120, y: 40 },  { x: 200, y: 40 },   // 行0
+    { x:  40, y: 120},  { x: 120, y:120 },  { x: 200, y:120 },  // 行1
+    { x:  40, y: 200},  { x: 120, y:200 },  { x: 200, y:200 },  // 行2
+    { x:  40, y:280},  { x: 120, y:280 },  { x: 200, y:280 }    // 行3
+];
+
+let draggingPoint4 = null;
+
+// 更新 4×3 棋盘 DOM
+function updateBoard4() {
+    board4Element.querySelectorAll('.cell').forEach((cell, index) => {
+        const [x, y] = cell.getAttribute('data-pos4').split(',').map(Number);
+        const val = board4[x][y];
+        if (showLabels) {
+            cell.textContent = (val !== ".") ? val : (index+1);
+        } else {
+            if (val.startsWith("W")) {
+                cell.textContent = "♘";
+            } else if (val.startsWith("B")) {
+                cell.textContent = "♞";
+            } else {
+                cell.textContent = "";
+            }
+        }
+        cell.className = `cell ${val[0] || ''}`;
+    });
+    stepsElement4.textContent = `（4×3 新棋盘）步数: ${steps4}`;
+    drawGraph4();
+}
+
+// 绘制 4×3 画布上的点、连线
+function drawGraph4() {
+    ctx4.clearRect(0, 0, graphCanvas4.width, graphCanvas4.height);
+
+    // 先画连线：根据 knightMoves + 4×3 边界
+    points4.forEach((p, i) => {
+        // i => 行列: row = Math.floor(i/3), col = i%3
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+
+        knightMoves.forEach(([dx, dy]) => {
+            const nr = row + dx, nc = col + dy;
+            if (nr >= 0 && nr < 4 && nc >= 0 && nc < 3) {
+                const ni = nr*3 + nc;
+                ctx4.beginPath();
+                ctx4.moveTo(p.x, p.y);
+                ctx4.lineTo(points4[ni].x, points4[ni].y);
+                ctx4.strokeStyle = "#aaa";
+                ctx4.stroke();
+            }
+        });
+    });
+
+    // 再画节点及骑士符号
+    points4.forEach((point, index) => {
+        ctx4.beginPath();
+        ctx4.arc(point.x, point.y, 12, 0, 2 * Math.PI);
+
+        // 对应的棋子
+        const row = Math.floor(index / 3);
+        const col = index % 3;
+        const piece = board4[row][col];
+        if (piece.startsWith("W")) {
+            ctx4.fillStyle = "white";
+            ctx4.strokeStyle = "black";
+            ctx4.fill();
+            ctx4.stroke();
+            ctx4.font = "20px Arial";
+            ctx4.fillStyle = "black";
+            ctx4.fillText("♘", point.x - 6, point.y + 6);
+        } else if (piece.startsWith("B")) {
+            ctx4.fillStyle = "white";
+            ctx4.strokeStyle = "black";
+            ctx4.fill();
+            ctx4.stroke();
+            ctx4.font = "20px Arial";
+            ctx4.fillStyle = "black";
+            ctx4.fillText("♞", point.x - 6, point.y + 6);
+        } else {
+            ctx4.fillStyle = "white";
+            ctx4.strokeStyle = "gray";
+            ctx4.fill();
+            ctx4.stroke();
+        }
+
+        // 如果显示标签，则画上数字
+        if (showLabels) {
+            ctx4.font = "12px Arial";
+            ctx4.fillStyle = "black";
+            ctx4.fillText(index+1, point.x - 4, point.y - 10);
+        }
+    });
+}
+
+// 点击 4×3 棋盘格子：如果已经选中一个，就尝试移动；否则选中
+board4Element.addEventListener("click", (e) => {
+    const cell = e.target;
+    const [x, y] = cell.getAttribute('data-pos4').split(',').map(Number);
+
+    if (selected4) {
+        const [sx, sy] = selected4;
+        const piece = board4[sx][sy];
+        // 尝试走棋
+        if (piece && board4[x][y] === "." && canMoveKnight4(sx, sy, x, y)) {
+            board4[x][y] = piece;
+            board4[sx][sy] = ".";
+            steps4++;
+            selected4 = null;
+            updateBoard4();
+
+            // 检查完成：最上行 3 白马 / 最下行 3 黑马
+            // 目标状态：
+            // [
+            //   ["W1","W2","W3"],
+            //   [".",".","."],
+            //   [".",".","."],
+            //   ["B1","B2","B3"]
+            // ]
+            const finalState4 = JSON.stringify([
+                ["W1","W2","W3"],
+                [".",".","."],
+                [".",".","."],
+                ["B1","B2","B3"]
+            ]);
+            if (JSON.stringify(board4) === finalState4) {
+                alert(`恭喜！你完成了 4×3 棋盘挑战，共用步数：${steps4}`);
+            }
+        } else {
+            // 如果不能走，就把当前位置是否有棋子再选中
+            selected4 = board4[x][y] !== "." ? [x, y] : null;
+        }
+    } else {
+        selected4 = board4[x][y] !== "." ? [x, y] : null;
+    }
+});
+
+// 判断是否能在 4×3 范围内走“马步”
+function canMoveKnight4(x1, y1, x2, y2) {
+    return knightMoves.some(([dx, dy]) => (
+        x2 === x1+dx &&
+        y2 === y1+dy &&
+        x2 >= 0 && x2 < 4 &&
+        y2 >= 0 && y2 < 3
+    ));
+}
+
+// 处理鼠标/触摸拖拽事件(针对 4×3 canvas)
+graphCanvas4.addEventListener("mousedown", startDragging4);
+graphCanvas4.addEventListener("touchstart", startDragging4);
+
+function startDragging4(e) {
+    const rect = graphCanvas4.getBoundingClientRect();
+    const mouseX = e.offsetX !== undefined 
+        ? e.offsetX 
+        : e.touches[0].clientX - rect.left;
+    const mouseY = e.offsetY !== undefined 
+        ? e.offsetY
+        : e.touches[0].clientY - rect.top;
+
+    draggingPoint4 = points4.find(
+        p => Math.hypot(p.x - mouseX, p.y - mouseY) < 12
+    );
+}
+
+graphCanvas4.addEventListener("mousemove", dragPoint4);
+graphCanvas4.addEventListener("touchmove", dragPoint4);
+
+function dragPoint4(e) {
+    if (draggingPoint4) {
+        e.preventDefault(); // 阻止页面滚动
+        const rect = graphCanvas4.getBoundingClientRect();
+        const mouseX = e.offsetX !== undefined 
+            ? e.offsetX 
+            : e.touches[0].clientX - rect.left;
+        const mouseY = e.offsetY !== undefined 
+            ? e.offsetY
+            : e.touches[0].clientY - rect.top;
+        draggingPoint4.x = mouseX;
+        draggingPoint4.y = mouseY;
+        drawGraph4();
+    }
+}
+
+graphCanvas4.addEventListener("mouseup", stopDragging4);
+graphCanvas4.addEventListener("touchend", stopDragging4);
+
+function stopDragging4() {
+    draggingPoint4 = null;
+}
+
+// 初始化 4×3 棋盘
+updateBoard4();
+</script>
+
+</body>
+</html>
