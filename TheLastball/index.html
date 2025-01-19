@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最后一个球@孙维刚研究院</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #444;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            font-size: 16px;
+            width: 80px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .description, .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        ol {
+            padding-left: 20px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>最后一个球</h1>
+
+    <div class="description">
+        <h2>题目说明</h2>
+        <p>在一个袋子中，初始有一定数量的黑球和白球，重复以下操作直到袋中只剩下一个球：</p>
+        <ol>
+            <li>从袋子中随机拿出两个球（不放回）。</li>
+            <li>如果两个球是相同颜色，则放一个黑球回袋中。</li>
+            <li>如果两个球是不同颜色，则放一个白球回袋中。</li>
+        </ol>
+        <p>请问：最终剩下的唯一球是什么颜色的。</p>
+        <p>您可以通过输入初始黑球和白球的数量来自定义模拟。</p>
+    </div>
+
+    <div style="text-align: center;">
+        <label for="blackBalls">黑球数量：</label>
+        <input type="number" id="blackBalls" value="20" min="1">
+        <label for="whiteBalls">白球数量：</label>
+        <input type="number" id="whiteBalls" value="16" min="1">
+        <p>输入您希望的初始黑球和白球数量，点击下方按钮运行模拟。</p>
+    </div>
+
+    <button onclick="runSimulation()">运行模拟</button>
+
+    <div class="result" id="result">
+        <h2>结果</h2>
+        <p>输入黑球和白球的数量后，点击“运行模拟”按钮以查看结果。</p>
+    </div>
+</div>
+
+<script>
+function runSimulation() {
+    const blackBallsInput = document.getElementById("blackBalls").value;
+    const whiteBallsInput = document.getElementById("whiteBalls").value;
+
+    // 检查输入是否有效
+    const blackBallsCount = parseInt(blackBallsInput, 10);
+    const whiteBallsCount = parseInt(whiteBallsInput, 10);
+
+    if (isNaN(blackBallsCount) || isNaN(whiteBallsCount) || blackBallsCount < 1 || whiteBallsCount < 1) {
+        alert("请输入有效的黑球和白球数量（至少为1）。");
+        return;
+    }
+
+    let Ball = Array(blackBallsCount).fill(0).concat(Array(whiteBallsCount).fill(1)); // 0表示黑球，1表示白球
+    let takeNum = 0;
+    let color = ['黑球', '白球'];
+    let result = "";
+
+    while (Ball.length > 1) {
+        takeNum++;
+        let takeOut = [];
+        takeOut.push(Ball.splice(Math.floor(Math.random() * Ball.length), 1)[0]);
+        takeOut.push(Ball.splice(Math.floor(Math.random() * Ball.length), 1)[0]);
+        result += `<p>第${takeNum}次拿出的两个球为：${color[takeOut[0]]} 和 ${color[takeOut[1]]}</p>`;
+        
+        if (takeOut[0] === takeOut[1]) {
+            Ball.push(0);
+            result += `<p>放回一个黑球</p>`;
+        } else {
+            Ball.push(1);
+            result += `<p>放回一个白球</p>`;
+        }
+        result += `<p>剩下黑球${Ball.filter(x => x === 0).length}个，白球${Ball.filter(x => x === 1).length}个</p><hr>`;
+    }
+
+    let finalBall = color[Ball[0]];
+    result += `<h3>最后剩下的球是：${finalBall}</h3>`;
+    document.getElementById("result").innerHTML = result;
+}
+</script>
+
+</body>
+</html>
