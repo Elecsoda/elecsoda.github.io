@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>纸牌游戏——Topswops@孙维刚研究院</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+        }
+        .deck {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            border: 1px solid #000;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .card.ace {
+            background-color: #ffd700;
+        }
+        .log {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .input-container {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>纸牌游戏——Topswops</h1>
+    <div class="input-container">
+        <label for="cardCount">选择牌的数量：</label>
+        <input type="number" id="cardCount" value="13" min="1" max="52">
+        <button class="button" onclick="initializeGame()">设置牌组</button>
+    </div>
+    <div id="deck" class="deck"></div>
+    <div>
+        <button class="button" onclick="playStep()">倒序</button>
+        <button class="button" onclick="initializeGame()">重新开始</button>
+    </div>
+    <div id="log" class="log"></div>
+
+    <script>
+        const cardsIndex = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        let cards = [];
+        let logElement = document.getElementById("log");
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function renderDeck() {
+            const deckElement = document.getElementById("deck");
+            deckElement.innerHTML = "";
+            cards.forEach(card => {
+                const cardElement = document.createElement("div");
+                cardElement.className = "card";
+                if (card === 'A') cardElement.classList.add("ace");
+                cardElement.textContent = card;
+                deckElement.appendChild(cardElement);
+            });
+        }
+
+        function logMessage(message) {
+            const logEntry = document.createElement("div");
+            logEntry.textContent = message;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight; // 自动滚动到底部
+        }
+
+        function initializeGame() {
+            const cardCount = parseInt(document.getElementById("cardCount").value);
+            cards = cardsIndex.slice(0, cardCount);
+            shuffle(cards);
+            logElement.innerHTML = ""; // 清空日志
+            renderDeck();
+            logMessage("初始排序为: " + cards.join(" "));
+        }
+
+        function playStep() {
+            if (cards[0] === 'A') {
+                logMessage("A已出现在顶部，游戏成功！🎉");
+                return;
+            }
+
+            const topCard = cards[0];
+            const cardValue = cardsIndex.indexOf(topCard) + 1;
+            logMessage(`顶部牌为 ${topCard}，将前 ${cardValue} 张牌倒序`);
+            const reversedPart = cards.slice(0, cardValue).reverse();
+            cards = [...reversedPart, ...cards.slice(cardValue)];
+            renderDeck();
+
+            // 每次倒序后记录当前牌的顺序
+            logMessage("当前排序为: " + cards.join(" "));
+
+            if (cards[0] === 'A') {
+                logMessage("A已出现在顶部，游戏成功！🎉");
+            }
+        }
+
+        // 初始化游戏
+        initializeGame();
+    </script>
+</body>
+</html>
