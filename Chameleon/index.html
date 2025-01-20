@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>变色龙颜色变化模拟</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #444;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            font-size: 16px;
+            width: 80px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .description, .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        ol {
+            padding-left: 20px;
+        }
+        .flex-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .flex-row p {
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .left, .right {
+            flex: 1;
+            padding: 0 10px;
+        }
+        .right {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>变色龙颜色变化模拟</h1>
+
+    <div class="description">
+        <h2>题目说明</h2>
+        <p>在一个岛上，有三种颜色的变色龙：</p>
+        <ol>
+            <li>棕色变色龙。</li>
+            <li>灰色变色龙。</li>
+            <li>绿色变色龙。</li>
+        </ol>
+        <p>当两只不同颜色的变色龙相遇时，它们都会变为第三种颜色。例如：</p>
+        <ul>
+            <li>棕色和灰色相遇，棕色数量-1，灰色数量-1，绿色数量+2。</li>
+            <li>棕色和绿色相遇，棕色数量-1，绿色数量-1，灰色数量+2。</li>
+            <li>灰色和绿色相遇，灰色数量-1，绿色数量-1，棕色数量+2。</li>
+        </ul>
+        <p>程序会显示变色龙的数量和每两种颜色之间的数量差。</p>
+    </div>
+
+    <div style="text-align: center;">
+        <label for="brown">棕色变色龙数量：</label>
+        <input type="number" id="brown" value="10" min="0">
+        <label for="gray">灰色变色龙数量：</label>
+        <input type="number" id="gray" value="14" min="0">
+        <label for="green">绿色变色龙数量：</label>
+        <input type="number" id="green" value="15" min="0">
+        <p>输入三种变色龙的初始数量，点击下方按钮运行模拟。</p>
+    </div>
+
+    <button onclick="runSimulation()">运行模拟</button>
+
+    <div class="result" id="result">
+        <h2>结果</h2>
+        <p>输入变色龙的数量后，点击“运行模拟”按钮以查看过程和结果。</p>
+    </div>
+</div>
+
+<script>
+function runSimulation() {
+    const brownInput = document.getElementById("brown").value;
+    const grayInput = document.getElementById("gray").value;
+    const greenInput = document.getElementById("green").value;
+
+    // 初始数量
+    let brown = parseInt(brownInput, 10);
+    let gray = parseInt(grayInput, 10);
+    let green = parseInt(greenInput, 10);
+
+    if (isNaN(brown) || isNaN(gray) || isNaN(green) || brown < 0 || gray < 0 || green < 0) {
+        alert("请输入有效的变色龙数量（非负整数）。");
+        return;
+    }
+
+    let result = "";
+    let step = 0;
+
+    function calculateDifferences(brown, gray, green) {
+        const diff1 = brown - gray; // 棕色-灰色
+        const diff2 = gray - green; // 灰色-绿色
+        const diff3 = brown - green; // 棕色-绿色
+        return {
+            diff1,
+            diff2,
+            diff3
+        };
+    }
+
+    while (step < 20) {
+        step++;
+
+        // 随机选择相遇的颜色组合
+        const possibleEncounters = [];
+        if (brown > 0 && gray > 0) possibleEncounters.push("brown-gray");
+        if (brown > 0 && green > 0) possibleEncounters.push("brown-green");
+        if (gray > 0 && green > 0) possibleEncounters.push("gray-green");
+
+        if (possibleEncounters.length === 0) break;
+
+        const encounter = possibleEncounters[Math.floor(Math.random() * possibleEncounters.length)];
+        if (encounter === "brown-gray") {
+            brown--;
+            gray--;
+            green += 2;
+            result += `<p>第${step}次相遇：棕色和灰色相遇，变为绿色。</p>`;
+        } else if (encounter === "brown-green") {
+            brown--;
+            green--;
+            gray += 2;
+            result += `<p>第${step}次相遇：棕色和绿色相遇，变为灰色。</p>`;
+        } else if (encounter === "gray-green") {
+            gray--;
+            green--;
+            brown += 2;
+            result += `<p>第${step}次相遇：灰色和绿色相遇，变为棕色。</p>`;
+        }
+
+        const { diff1, diff2, diff3 } = calculateDifferences(brown, gray, green);
+
+        result += `
+        <div class="flex-row">
+            <div class="left">
+                <p>棕色=${brown}, 灰色=${gray}, 绿色=${green}</p>
+            </div>
+            <div class="right">
+                <p>棕-灰=${diff1}  &nbsp;&nbsp;  灰-绿=${diff2}  &nbsp;&nbsp;  棕-绿=${diff3}</p>
+            </div>
+        </div>
+        <hr>`;
+    }
+
+    result += `<h3>模拟结束，共完成${step}次相遇。</h3>`;
+    document.getElementById("result").innerHTML = result;
+}
+</script>
+
+</body>
+</html>
