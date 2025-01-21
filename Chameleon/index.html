@@ -133,9 +133,9 @@ function runSimulation() {
     let step = 0;
 
     function calculateDifferences(brown, gray, green) {
-        const diff1 = brown - gray; // 棕色-灰色
-        const diff2 = gray - green; // 灰色-绿色
-        const diff3 = brown - green; // 棕色-绿色
+        const diff1 = gray - brown; // 灰色-棕色
+        const diff2 = green - gray; // 绿色-灰色
+        const diff3 = green - brown; // 绿色-棕色
         return {
             diff1,
             diff2,
