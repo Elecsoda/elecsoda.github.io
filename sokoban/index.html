@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>推箱子游戏 @孙维刚教育研究院</title>
+  <title>推箱子游戏</title>
   <style>
     /* —— 基本样式 —— */
     body {
@@ -221,7 +221,7 @@ button:focus {
   </style>
 </head>
 <body>
-  <h1>推箱子游戏 @孙维刚教育研究院</h1>
+  <h1>推箱子游戏</h1>
 
   <!-- 顶部按钮区域：6个关卡 + 自定义地图 -->
   <div id="controls">
@@ -231,6 +231,16 @@ button:focus {
     <button id="btn-level4">关卡4</button>
     <button id="btn-level5">关卡5</button>
     <button id="btn-level6">关卡6</button>
+  </div>
+  以下地图非常非常非常难，欢迎课后挑战！
+  <div id="controls">
+    <button id="btn-level7">关卡7</button>
+    <button id="btn-level8">关卡8</button>
+    <button id="btn-level9">关卡9</button>
+    <button id="btn-level10">关卡10</button>
+    <button id="btn-level11">关卡11</button>
+    <button id="btn-level12">关卡12</button>
+    <button id="btn-level13">关卡13</button>
     <button id="btn-show-custom-map">自定义地图</button>
   </div>
 
@@ -268,6 +278,8 @@ button:focus {
     </div>
   </div>
 
+
+  
 <script>
 /*
   基于“可撤回 + 自定义地图”版本，并添加：
@@ -341,6 +353,79 @@ const level6Text = [
 "__#----#-----#",
 "__############"
 ].join("\n");
+
+const level7Text = [
+"#####__",
+"#---#__",
+"#---###",
+"#$$$@-#",
+"#...--#",
+"#######"
+].join("\n");
+
+const level8Text = [
+"####__",
+"#--#__",
+"#--#__",
+"#--###",
+"#.$$@#",
+"#--.-#",
+"#--###",
+"####__"
+].join("\n");
+
+const level9Text = [
+"#######",
+"#-----#",
+"#-$$$.#",
+"##-#@.#",
+"_#-#-.#",
+"_#--#-#",
+"_##---#",
+"__#####"
+].join("\n");
+
+const level10Text = [
+"_________#####",
+"_________#---#",
+"##########-#-#",
+"#.-----#--$--#",
+"#.--@--#----##",
+"#.#-#######--#",
+"#---------$$-#",
+"##--#####----#",
+"_####___######"
+].join("\n");
+
+const level11Text = [
+"_#######__",
+"_#-----###",
+"##-###$--#",
+"#--..-$--#",
+"#--.##$-##",
+"###-#-@##_",
+"__#---##__",
+"__#####___"
+].join("\n");
+
+const level12Text = [
+"######____",
+"#----#####",
+"#---$-$--#",
+"###$...@-#",
+"__#--#####",
+"__####____"
+].join("\n");
+
+const level13Text = [
+"#######",
+"#@-$.-#",
+"#--$--#",
+"#.-$-$#",
+"#-.-#.#",
+"#######"
+].join("\n");
+
 
 /** 全局数据 */
 let floorMap = [];  
@@ -657,6 +742,29 @@ document.getElementById("btn-level5").addEventListener("click", () => {
 document.getElementById("btn-level6").addEventListener("click", () => {
   loadLevelFromText(level6Text);
 });
+document.getElementById("btn-level7").addEventListener("click", () => {
+  loadLevelFromText(level7Text);
+});
+document.getElementById("btn-level8").addEventListener("click", () => {
+  loadLevelFromText(level8Text);
+});
+document.getElementById("btn-level9").addEventListener("click", () => {
+  loadLevelFromText(level9Text);
+});
+document.getElementById("btn-level10").addEventListener("click", () => {
+  loadLevelFromText(level10Text);
+});
+document.getElementById("btn-level11").addEventListener("click", () => {
+  loadLevelFromText(level11Text);
+});
+document.getElementById("btn-level12").addEventListener("click", () => {
+  loadLevelFromText(level12Text);
+});
+document.getElementById("btn-level13").addEventListener("click", () => {
+  loadLevelFromText(level13Text);
+});
+
+
 
 const btnShowCustomMap = document.getElementById("btn-show-custom-map");
 const customMapContainer = document.getElementById("custom-map-container");
