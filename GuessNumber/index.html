@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猜数字游戏</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 20px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    .message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+    .chart-container {
+      margin-top: 30px;
+      width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+    }
+    .chart {
+      display: flex;
+      position: relative;
+      width: 100%;
+      height: 30px;
+    }
+    .chart div {
+      flex: 1;
+      height: 100%;
+      background-color: lightgray;
+      position: relative;
+    }
+    .chart .range {
+      position: absolute;
+      height: 100%;
+      top: 0;
+      background-color: lightgreen;
+      z-index: 1;
+    }
+    .chart .marker {
+      position: absolute;
+      bottom: -20px;
+      height: 10px;
+      width: 2px;
+      background-color: red;
+    }
+    .chart .tick {
+      position: absolute;
+      bottom: -5px;
+      height: 10px;
+      width: 2px;
+      background-color: black;
+    }
+    .numbers {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 25px;
+      font-size: 14px;
+    }
+    .label {
+      position: absolute;
+      top: 35px;
+      background-color: white;
+      padding: 2px 4px;
+      border: 1px solid #ccc;
+      font-size: 12px;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>猜数字游戏</h1>
+  <p>我想了一个 1 到 100 的数字，快来猜吧！</p>
+  <p>请输入一个数字，我会告诉你我想的数字是否“大于这个数”。</p>
+  
+  <input type="number" id="inputNumber" placeholder="输入一个数字 (1-100)">
+  <button onclick="checkNumber()">检查</button>
+  <button onclick="restartGame()">重新开始</button>
+  
+  <div class="message" id="message"></div>
+
+  <div class="chart-container">
+    <div class="chart" id="chart"></div>
+    <div class="numbers" id="numbers">
+      <!-- 整十的数字 -->
+      <span>0</span>
+      <span>10</span>
+      <span>20</span>
+      <span>30</span>
+      <span>40</span>
+      <span>50</span>
+      <span>60</span>
+      <span>70</span>
+      <span>80</span>
+      <span>90</span>
+      <span>100</span>
+    </div>
+  </div>
+
+  <script>
+    let N; // 随机数
+    let Times = 0; // 总猜测次数
+    let Wrong_times = 0; // 错误次数
+    let minRange = 1; // 当前最小可能值
+    let maxRange = 100; // 当前最大可能值
+    const totalSegments = 100;
+    let labelOffset = 35; // 初始标记文字位置偏移量
+    const allAttempts = []; // 用于记录所有尝试结果
+
+    // 初始化游戏
+    function initGame() {
+      N = Math.floor(Math.random() * 100) + 1;
+      Times = 0;
+      Wrong_times = 0;
+      minRange = 1;
+      maxRange = 100;
+      labelOffset = 35; // 重置标记文字初始位置
+      allAttempts.length = 0; // 清空所有尝试记录
+      document.getElementById("inputNumber").disabled = false;
+      document.getElementById("message").innerHTML = "";
+      drawLineChart(); // 绘制初始线段
+    }
+
+    initGame();
+
+    // 绘制线段图
+    function drawLineChart() {
+      const chart = document.getElementById("chart");
+      chart.innerHTML = ""; // 清空旧的图表
+
+      // 创建绿色范围
+      const range = document.createElement("div");
+      range.classList.add("range");
+      range.style.left = `${(minRange - 1) / totalSegments * 100}%`;
+      range.style.width = `${(maxRange - minRange + 1) / totalSegments * 100}%`;
+      chart.appendChild(range);
+
+      // 创建100个格子
+      for (let i = 0; i < totalSegments; i++) {
+        const segment = document.createElement("div");
+        chart.appendChild(segment);
+      }
+
+      // 添加整十刻度
+      const tickPositions = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      tickPositions.forEach(pos => {
+        const tick = document.createElement("div");
+        tick.classList.add("tick");
+        tick.style.left = `${(pos - 1) / totalSegments * 100}%`;
+        chart.appendChild(tick);
+      });
+    }
+
+    // 更新线段图
+    function updateLineChart(guess) {
+      const chart = document.getElementById("chart");
+
+      // 标记猜测位置
+      const marker = document.createElement("div");
+      marker.classList.add("marker");
+      marker.style.left = `${(guess - 1) / totalSegments * 100}%`;
+
+      // 添加数字标记
+      const label = document.createElement("div");
+      label.classList.add("label");
+      label.innerText = `${guess} (第${Times}次)`;
+      label.style.top = `${labelOffset}px`; // 标记文字下移
+      labelOffset += 20; // 下次标记文字进一步下移
+      marker.appendChild(label);
+
+      chart.appendChild(marker);
+
+      // 更新绿色范围
+      const range = chart.querySelector(".range");
+      range.style.left = `${(minRange - 1) / totalSegments * 100}%`;
+      range.style.width = `${(maxRange - minRange + 1) / totalSegments * 100}%`;
+    }
+
+    // 检查数字
+    function checkNumber() {
+      const input = document.getElementById("inputNumber").value;
+      const message = document.getElementById("message");
+
+      if (!input) {
+        message.innerHTML = '<span class="error">请输入一个数字！</span>';
+        return;
+      }
+
+      const n = parseInt(input, 10);
+      Times++;
+
+      let attemptMessage = `第${Times}次: 猜测 ${n}`;
+      if (N > n) {
+        attemptMessage += " - 比这个数大";
+        minRange = Math.max(minRange, n + 1);
+      } else if (N < n) {
+        attemptMessage += " - 比这个数小，一次错误机会用掉了";
+        maxRange = Math.min(maxRange, n - 1);
+        Wrong_times++;
+      } else {
+        attemptMessage += " - 恭喜，你猜对了！";
+        document.getElementById("inputNumber").disabled = true;
+      }
+
+      if (Wrong_times === 2 && N !== n) {
+        attemptMessage += " - 两次错误机会用完，游戏结束！";
+        document.getElementById("inputNumber").disabled = true;
+      }
+
+      allAttempts.push(attemptMessage); // 记录当前尝试
+      message.innerHTML = allAttempts.join("<br>"); // 显示所有尝试记录
+
+      updateLineChart(n); // 更新线段图
+    }
+
+    // 重新开始游戏
+    function restartGame() {
+      initGame();
+    }
+  </script>
+</body>
+</html>
