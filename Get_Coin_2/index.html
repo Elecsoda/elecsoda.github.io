@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>称硬币游戏 @ 孙维刚研究院</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            font-size: 26px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        p {
+            font-size: 16px;
+            color: #555;
+        }
+        #coins {
+            display: flex;
+            gap: 10px;
+            margin: 10px auto;
+            padding: 20px;
+            background-color: #fafafa;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            width: 400px;
+            height: 120px;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            justify-content: center;
+            align-items: center;
+        }
+        .coin {
+            width: 35px;
+            height: 35px;
+            background-color: #ffd700;
+            border: 2px solid #e0c068;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .coin:hover {
+            transform: scale(1.1);
+        }
+        .fake-heavy {
+            background-color: red !important;
+        }
+        .fake-light {
+            background-color: lightgray !important;
+        }
+        .box {
+            width: 200px;
+            height: 120px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-wrap: wrap;
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4caf50;
+            color: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s, transform 0.2s;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        #result-msg {
+            font-size: 18px;
+            color: #333;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #log {
+            text-align: left;
+            margin: 20px auto;
+            max-width: 400px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>称硬币游戏 @ 孙维刚研究院</h2>
+<p>目标：找出假币（可能轻或重，权重为 0.8 或 1.2）</p>
+
+<div>
+    <label for="coin-count">硬币数量 (1-20): </label>
+    <input type="number" id="coin-count" min="1" max="20" value="12">
+    <button onclick="startGame()">开始游戏</button>
+</div>
+
+<div id="coins">
+    <!-- 硬币 -->
+</div>
+
+<div style="display: flex; justify-content: center; gap: 20px;">
+    <div id="left-scale" class="box">左端</div>
+    <div id="right-scale" class="box">右端</div>
+</div>
+
+<button onclick="weigh()">称量</button>
+<p id="result-msg">称量结果将在此处显示。</p>
+
+<div id="log">
+    <h3>称量记录：</h3>
+    <ul id="log-list"></ul>
+</div>
+
+<div>
+    <div id="inspect-box" class="box" style="margin: 20px auto;">检验框</div>
+    <button onclick="inspect()">检验硬币</button>
+    <p id="inspect-msg"></p>
+</div>
+
+<button onclick="toggleFake()">显示假币</button>
+
+<script>
+    let coins = [];
+    let fakeCoinIndex;
+    let fakeCoinWeight;
+    let coinCount = 12;
+    let showFake = false;
+
+    function startGame() {
+        coinCount = parseInt(document.getElementById("coin-count").value);
+        if (coinCount < 1 || coinCount > 20) {
+            alert("硬币数量必须在1到20之间！");
+            return;
+        }
+
+        // 初始化硬币
+        const coinsContainer = document.getElementById("coins");
+        coinsContainer.innerHTML = "";
+        const leftScale = document.getElementById("left-scale");
+        const rightScale = document.getElementById("right-scale");
+        leftScale.innerHTML = "";
+        rightScale.innerHTML = "";
+        coins = [];
+        fakeCoinIndex = Math.floor(Math.random() * coinCount);
+        fakeCoinWeight = Math.random() < 0.5 ? 0.8 : 1.2;
+
+        for (let i = 0; i < coinCount; i++) {
+            const coin = document.createElement("div");
+            coin.classList.add("coin");
+            coin.textContent = i + 1;
+            coin.draggable = true;
+            coin.dataset.weight = i === fakeCoinIndex ? fakeCoinWeight : 1.0;
+            coin.addEventListener("dragstart", dragStart);
+            coin.addEventListener("click", returnToContainer); // 单击返回硬币框
+            coins.push(coin);
+            coinsContainer.appendChild(coin);
+        }
+
+        document.getElementById("result-msg").textContent = "游戏已重置，请开始称量！";
+        document.getElementById("log-list").innerHTML = "";
+        document.getElementById("inspect-msg").textContent = "";
+        showFake = false;
+        document.querySelector("button[onclick='toggleFake()']").textContent = "显示假币"; // 确保显示假币功能关闭
+    }
+
+    // 拖动功能
+    let draggedCoin = null;
+    document.querySelectorAll(".box").forEach(box => {
+        box.addEventListener("dragover", e => e.preventDefault());
+        box.addEventListener("drop", e => {
+            e.preventDefault();
+            box.appendChild(draggedCoin);
+        });
+    });
+
+    function dragStart(e) {
+        draggedCoin = e.target;
+    }
+
+    // 单击硬币返回硬币框
+    function returnToContainer(e) {
+        const coinsContainer = document.getElementById("coins");
+        coinsContainer.appendChild(e.target);
+    }
+
+    // 称量功能
+    function weigh() {
+        const leftCoins = Array.from(document.getElementById("left-scale").querySelectorAll(".coin"));
+        const rightCoins = Array.from(document.getElementById("right-scale").querySelectorAll(".coin"));
+
+        if (leftCoins.length !== rightCoins.length || leftCoins.length === 0) {
+            document.getElementById("result-msg").textContent = "请确保两端放置相等数量的硬币！";
+            return;
+        }
+
+        const leftWeight = leftCoins.reduce((sum, coin) => sum + parseFloat(coin.dataset.weight), 0);
+        const rightWeight = rightCoins.reduce((sum, coin) => sum + parseFloat(coin.dataset.weight), 0);
+
+        let result;
+        if (leftWeight > rightWeight) {
+            result = "左端较重";
+        } else if (leftWeight < rightWeight) {
+            result = "右端较重";
+        } else {
+            result = "两端重量相等";
+        }
+
+        document.getElementById("result-msg").textContent = result;
+
+        // 记录称量结果和硬币编号
+        const logList = document.getElementById("log-list");
+        const leftNumbers = leftCoins.map(coin => coin.textContent).join(", ");
+        const rightNumbers = rightCoins.map(coin => coin.textContent).join(", ");
+        const logItem = document.createElement("li");
+        logItem.textContent = ` ${result} | 左端: [${leftNumbers}] | 右端: [${rightNumbers}]`;
+        logList.appendChild(logItem);
+    }
+
+    // 检验硬币
+    function inspect() {
+        const inspectBox = document.getElementById("inspect-box");
+        const inspectedCoin = inspectBox.querySelector(".coin");
+        const inspectMsg = document.getElementById("inspect-msg");
+
+        if (!inspectedCoin) {
+            inspectMsg.textContent = "请将硬币拖入检验框！";
+        } else if (parseFloat(inspectedCoin.dataset.weight) === fakeCoinWeight) {
+            const fakeType = fakeCoinWeight > 1.0 ? "较重" : "较轻";
+            inspectMsg.textContent = `硬币 ${inspectedCoin.textContent} 是假币！(${fakeType})`;
+        } else {
+            inspectMsg.textContent = `硬币 ${inspectedCoin.textContent} 是真币。`;
+        }
+    }
+
+    // 显示/隐藏假币
+    function toggleFake() {
+        const fakeCoin = coins[fakeCoinIndex];
+        showFake = !showFake;
+        if (showFake) {
+            if (fakeCoinWeight > 1.0) {
+                fakeCoin.classList.add("fake-heavy");
+                fakeCoin.classList.remove("fake-light");
+            } else {
+                fakeCoin.classList.add("fake-light");
+                fakeCoin.classList.remove("fake-heavy");
+            }
+            document.querySelector("button[onclick='toggleFake()']").textContent = "隐藏假币";
+        } else {
+            fakeCoin.classList.remove("fake-heavy", "fake-light");
+            document.querySelector("button[onclick='toggleFake()']").textContent = "显示假币";
+        }
+    }
+
+    // 初始化游戏
+    startGame();
+</script>
+
+</body>
+</html>
