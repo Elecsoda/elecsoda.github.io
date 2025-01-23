@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>称硬币问题 @ 孙维刚研究院</title>
+    <title>称硬币游戏 @ 孙维刚研究院</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,8 +30,9 @@
             background-color: #fafafa;
             border: 2px solid #ccc;
             border-radius: 8px;
-            width: 400px;
-            height: 120px;
+            width: 90%;
+            max-width: 500px;
+            height: auto;
             flex-wrap: wrap;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             justify-content: center;
@@ -61,15 +62,20 @@
             background-color: lightgray !important;
         }
         .box {
-            width: 200px;
-            height: 120px;
-            border: 2px dashed #ccc;
             display: flex;
+            gap: 10px;
+            width: 40%;
+            max-width: 200px;
+            height: auto;
+            min-height: 120px;
+            border: 2px dashed #ccc;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             border-radius: 8px;
             flex-wrap: wrap;
             background-color: #f9f9f9;
+            margin: 10px auto;
+            padding: 10px;
         }
         button {
             padding: 10px 20px;
@@ -96,18 +102,36 @@
         #log {
             text-align: left;
             margin: 20px auto;
-            max-width: 400px;
+            max-width: 90%;
             padding: 10px;
             border: 1px solid #ccc;
             background-color: #f9f9f9;
             border-radius: 8px;
         }
+        @media (max-width: 600px) {
+            .coin {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+            .box {
+                height: auto;
+                min-height: 100px;
+            }
+            button {
+                font-size: 14px;
+                padding: 8px 16px;
+            }
+            #result-msg {
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
 
-<h2>称硬币游戏 @ 孙维刚研究院</h2>
-<p>目标：找出假币（可能轻或重，权重为 0.8 或 1.2）</p>
+<h2>称硬币游戏 - 不知假币是轻是重</h2>
+<p>目标：用最少的次数找出假币（假币可能轻或重）</p>
 
 <div>
     <label for="coin-count">硬币数量 (1-20): </label>
@@ -119,7 +143,7 @@
     <!-- 硬币 -->
 </div>
 
-<div style="display: flex; justify-content: center; gap: 20px;">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; max-width: 90%; margin: 20px auto;">
     <div id="left-scale" class="box">左端</div>
     <div id="right-scale" class="box">右端</div>
 </div>
@@ -154,7 +178,6 @@
             return;
         }
 
-        // 初始化硬币
         const coinsContainer = document.getElementById("coins");
         coinsContainer.innerHTML = "";
         const leftScale = document.getElementById("left-scale");
@@ -169,10 +192,16 @@
             const coin = document.createElement("div");
             coin.classList.add("coin");
             coin.textContent = i + 1;
-            coin.draggable = true;
             coin.dataset.weight = i === fakeCoinIndex ? fakeCoinWeight : 1.0;
+
+            coin.draggable = true;
             coin.addEventListener("dragstart", dragStart);
-            coin.addEventListener("click", returnToContainer); // 单击返回硬币框
+            coin.addEventListener("click", returnToContainer);
+
+            coin.addEventListener("touchstart", touchStart);
+            coin.addEventListener("touchmove", touchMove);
+            coin.addEventListener("touchend", touchEnd);
+
             coins.push(coin);
             coinsContainer.appendChild(coin);
         }
@@ -181,30 +210,49 @@
         document.getElementById("log-list").innerHTML = "";
         document.getElementById("inspect-msg").textContent = "";
         showFake = false;
-        document.querySelector("button[onclick='toggleFake()']").textContent = "显示假币"; // 确保显示假币功能关闭
+        document.querySelector("button[onclick='toggleFake()']").textContent = "显示假币";
     }
 
-    // 拖动功能
     let draggedCoin = null;
-    document.querySelectorAll(".box").forEach(box => {
-        box.addEventListener("dragover", e => e.preventDefault());
-        box.addEventListener("drop", e => {
-            e.preventDefault();
-            box.appendChild(draggedCoin);
-        });
-    });
 
     function dragStart(e) {
         draggedCoin = e.target;
     }
 
-    // 单击硬币返回硬币框
+    const boxes = document.querySelectorAll(".box, #coins");
+    boxes.forEach(box => {
+        box.addEventListener("dragover", e => e.preventDefault());
+        box.addEventListener("drop", e => {
+            e.preventDefault();
+            if (draggedCoin) {
+                box.appendChild(draggedCoin);
+                draggedCoin = null;
+            }
+        });
+    });
+
+    function touchStart(e) {
+        draggedCoin = e.target;
+    }
+
+    function touchMove(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && (target.classList.contains("box") || target.id === "coins")) {
+            target.appendChild(draggedCoin);
+        }
+    }
+
+    function touchEnd() {
+        draggedCoin = null;
+    }
+
     function returnToContainer(e) {
         const coinsContainer = document.getElementById("coins");
         coinsContainer.appendChild(e.target);
     }
 
-    // 称量功能
     function weigh() {
         const leftCoins = Array.from(document.getElementById("left-scale").querySelectorAll(".coin"));
         const rightCoins = Array.from(document.getElementById("right-scale").querySelectorAll(".coin"));
@@ -228,16 +276,13 @@
 
         document.getElementById("result-msg").textContent = result;
 
-        // 记录称量结果和硬币编号
-        const logList = document.getElementById("log-list");
         const leftNumbers = leftCoins.map(coin => coin.textContent).join(", ");
         const rightNumbers = rightCoins.map(coin => coin.textContent).join(", ");
         const logItem = document.createElement("li");
-        logItem.textContent = ` ${result} | 左端: [${leftNumbers}] | 右端: [${rightNumbers}]`;
-        logList.appendChild(logItem);
+        logItem.textContent = `称量结果: ${result} | 左端: [${leftNumbers}] | 右端: [${rightNumbers}]`;
+        document.getElementById("log-list").appendChild(logItem);
     }
 
-    // 检验硬币
     function inspect() {
         const inspectBox = document.getElementById("inspect-box");
         const inspectedCoin = inspectBox.querySelector(".coin");
@@ -253,7 +298,6 @@
         }
     }
 
-    // 显示/隐藏假币
     function toggleFake() {
         const fakeCoin = coins[fakeCoinIndex];
         showFake = !showFake;
@@ -272,7 +316,6 @@
         }
     }
 
-    // 初始化游戏
     startGame();
 </script>
 
