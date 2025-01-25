@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抓老鼠游戏-Mousetrap @ 孙维刚研究院</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        #deck, #table, #removed, #available-cards, #custom-deck {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            border: 1px solid #000;
+            border-radius: 8px;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        #current-custom-deck {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #visual-custom-deck {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>抓老鼠游戏-Mousetrap</h1>
+    <div id="controls">
+        <button id="random-deck">随机模式</button>
+        <button id="custom-deck">自定义模式</button>
+    </div>
+    <div id="custom-input" style="display: none;">
+        <h3>点击牌，自定义牌堆:</h3>
+        <div id="available-cards"></div>
+        <h3>Your custom deck:</h3>
+        <div id="custom-deck"></div>
+        <div id="current-custom-deck">目前的牌堆: []</div>
+        <div id="visual-custom-deck"></div>
+        <button id="submit-deck">开始游戏</button>
+    </div>
+    <div id="game-area" style="display: none;">
+        <p id="current-number">现在喊的数字: 1</p>
+        <div id="deck"></div>
+        <div id="table"></div>
+        <div id="removed">
+            <h3>拿走的牌:</h3>
+        </div>
+        <button id="next-step">下一步</button>
+        <button id="restart-game">重新开始</button>
+    </div>
+
+    <script>
+        let deck = [];
+        let removedCards = [];
+        let count = 1;
+        const maxCount = 13;
+        let currentMode = null; // Tracks whether the mode is 'random' or 'custom'
+
+        const controls = document.getElementById('controls');
+        const customInput = document.getElementById('custom-input');
+        const availableCardsElement = document.getElementById('available-cards');
+        const customDeckElement = document.getElementById('custom-deck');
+        const currentCustomDeckElement = document.getElementById('current-custom-deck');
+        const visualCustomDeckElement = document.getElementById('visual-custom-deck');
+        const gameArea = document.getElementById('game-area');
+        const deckElement = document.getElementById('deck');
+        const tableElement = document.getElementById('table');
+        const removedElement = document.getElementById('removed');
+        const currentNumberElement = document.getElementById('current-number');
+        const nextStepButton = document.getElementById('next-step');
+        const restartGameButton = document.getElementById('restart-game');
+
+        // Initialize the random deck
+        function initializeRandomDeck() {
+            currentMode = 'random';
+            deck = Array.from({ length: maxCount }, (_, i) => i + 1);
+            shuffle(deck);
+            startGame();
+        }
+
+        // Shuffle the deck
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Render the deck
+        function renderDeck() {
+            deckElement.innerHTML = '';
+            deck.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.textContent = card;
+                deckElement.appendChild(cardElement);
+            });
+        }
+
+        // Render the table
+        function renderTable() {
+            tableElement.innerHTML = '';
+        }
+
+        // Render the removed cards
+        function renderRemovedCards() {
+            removedElement.innerHTML = '<h3>Removed Cards:</h3>';
+            removedCards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.textContent = card;
+                removedElement.appendChild(cardElement);
+            });
+        }
+
+        // Start the game
+        function startGame() {
+            controls.style.display = 'none';
+            customInput.style.display = 'none';
+            gameArea.style.display = 'block';
+            removedCards = [];
+            renderDeck();
+            renderTable();
+            renderRemovedCards();
+            updateCurrentNumber();
+        }
+
+        // Update the current number display
+        function updateCurrentNumber() {
+            currentNumberElement.textContent = `Current Number: ${count}`;
+        }
+
+        // Handle the next step
+        function nextStep() {
+            if (deck.length === 0) {
+                alert('You caught all the mice! Game Over!');
+                return;
+            }
+
+            const topCard = deck[0];
+
+            if (count === topCard) {
+                removedCards.push(topCard);
+                deck.shift(); // Remove the card
+                count = 1; // Reset the counter
+                if (deck.length === 0) {
+                    alert('You caught all the mice! Game Over!');
+                }
+            } else if (count === maxCount) {
+                alert(`Game Over! Remaining mice: ${deck.join(', ')}`);
+                alert(`Caught mice count: ${maxCount - deck.length}`);
+                return;
+            } else {
+                count++; // Increment the counter
+                deck = deck.slice(1).concat(deck[0]); // Move the top card to the bottom
+            }
+
+            renderDeck();
+            renderRemovedCards();
+            updateCurrentNumber();
+        }
+
+        // Handle custom deck initialization
+        function initializeCustomDeck() {
+            currentMode = 'custom';
+            availableCardsElement.innerHTML = '';
+            customDeckElement.innerHTML = '';
+            visualCustomDeckElement.innerHTML = '';
+            deck = [];
+            for (let i = 1; i <= maxCount; i++) {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.textContent = i;
+                cardElement.addEventListener('click', () => {
+                    if (deck.length < maxCount) {
+                        deck.push(i);
+                        renderCustomDeck();
+                        cardElement.remove();
+                    }
+                });
+                availableCardsElement.appendChild(cardElement);
+            }
+            controls.style.display = 'none';
+            customInput.style.display = 'block';
+        }
+
+        // Render the custom deck
+        function renderCustomDeck() {
+            customDeckElement.innerHTML = '';
+            visualCustomDeckElement.innerHTML = '';
+            deck.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.textContent = card;
+                customDeckElement.appendChild(cardElement);
+
+                const visualCardElement = document.createElement('div');
+                visualCardElement.classList.add('card');
+                visualCardElement.textContent = card;
+                visualCustomDeckElement.appendChild(visualCardElement);
+            });
+            currentCustomDeckElement.textContent = `Current Custom Deck: [${deck.join(', ')}]`;
+        }
+
+        // Submit custom deck
+        function submitCustomDeck() {
+            if (deck.length !== maxCount) {
+                alert('Please select exactly 13 cards.');
+                return;
+            }
+            startGame();
+        }
+
+        // Restart game based on current mode
+        function restartGame() {
+            if (currentMode === 'random') {
+                initializeRandomDeck();
+            } else if (currentMode === 'custom') {
+                initializeCustomDeck();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('random-deck').addEventListener('click', initializeRandomDeck);
+        document.getElementById('custom-deck').addEventListener('click', initializeCustomDeck);
+        document.getElementById('submit-deck').addEventListener('click', submitCustomDeck);
+        nextStepButton.addEventListener('click', nextStep);
+        restartGameButton.addEventListener('click', restartGame);
+    </script>
+</body>
+</html>
