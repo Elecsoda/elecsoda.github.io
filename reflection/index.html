@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>光线反射 + 动态生成房间(45°)示例</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: sans-serif;
+      background: #fff;
+    }
+    .controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    label {
+      margin-right: 0.5rem;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ccc;
+      background: #f0f0f0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #e0e0e0;
+    }
+    /* 上方：真实房间画布 */
+    #mirrorCanvas {
+      border: 1px solid #000;
+      display: block;
+      margin-bottom: 1rem;
+    }
+    /* 下方：解释画布 */
+    #explanationCanvas {
+      border: 1px solid #333;
+      display: none; /* 默认隐藏，点击“原理解释”后显示 */
+      width: 800px;  
+      height: 600px; 
+    }
+    .divider {
+      margin: 1rem 0;
+      border-bottom: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============== 控制面板 ============== -->
+  <div class="controls">
+    <div>
+      <label for="widthInput">房间长度(默认780)：</label>
+      <input type="number" id="widthInput" value="780" min="1" style="width: 80px" />
+    </div>
+    <div>
+      <label for="heightInput">房间宽度(默认490)：</label>
+      <input type="number" id="heightInput" value="490" min="1" style="width: 80px" />
+    </div>
+    <div class="slider-container">
+      <label for="timeSlider">时长(秒)：</label>
+      <input type="range" id="timeSlider" min="1" max="120" step="1" value="15" />
+      <span id="timeValue">15</span>
+    </div>
+
+    <!-- 这三个按钮用来控制“真实房间反射动画” -->
+    <button id="startBtn">开始</button>
+    <button id="pauseBtn">暂停</button>
+    <button id="restartBtn">重新开始</button>
+
+    <!-- 这个按钮用来控制“下方45°动态展开”的示例 -->
+    <button id="explainBtn">原理解释</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ============== 上方：真实房间反射动画 ============== -->
+  <canvas id="mirrorCanvas"></canvas>
+
+  <div class="divider"></div>
+
+  <!-- ============== 下方：原理解释的45°动态生成房间 ============== -->
+  <canvas id="explanationCanvas" width="800" height="600">
+    你的浏览器不支持 &lt;canvas&gt;。
+  </canvas>
+
+  <script>
+    // ----------------------- 真实房间(上方) 的逻辑 -----------------------
+    const mirrorCanvas = document.getElementById('mirrorCanvas');
+    const ctxMirror = mirrorCanvas.getContext('2d');
+
+    const widthInput = document.getElementById('widthInput');
+    const heightInput = document.getElementById('heightInput');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeValue = document.getElementById('timeValue');
+
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const explainBtn = document.getElementById('explainBtn');
+
+    let Width = 780;   // 真实房间长度
+    let Height = 490;  // 真实房间宽度
+
+    // 动画控制
+    let animationId = null;
+    let isRunning = false;
+    let isPaused = false;
+
+    // 光线在真实房间内
+    let x, y;     // 当前坐标
+    let vx = 1, vy = -1; // 初始速度(像素/帧)
+    let totalSteps = 0; 
+    let currentStep = 0;
+    let stepsPerFrame = 1;
+    let leftover = 0;
+
+    // 根据房间的大小，计算光线从(0,Height)走到任意角落需多少步
+    function computeTotalSteps(w, h) {
+      let xTemp = 0;
+      let yTemp = h;
+      let vxTemp = 1;
+      let vyTemp = -1;
+      let steps = 0;
+      while (true) {
+        xTemp += vxTemp;
+        yTemp += vyTemp;
+        if (xTemp === w || xTemp === 0) {
+          vxTemp = -vxTemp;
+        }
+        if (yTemp === h || yTemp === 0) {
+          vyTemp = -vyTemp;
+        }
+        steps++;
+        if ((xTemp === 0 || xTemp === w) && (yTemp === 0 || yTemp === h)) {
+          break;
+        }
+      }
+      return steps;
+    }
+
+    function initMirrorCanvas() {
+      Width = parseInt(widthInput.value, 10);
+      Height = parseInt(heightInput.value, 10);
+      mirrorCanvas.width = Width;
+      mirrorCanvas.height = Height;
+
+      const timeSec = parseInt(timeSlider.value, 10);
+      const frames = 60 * timeSec;
+
+      totalSteps = computeTotalSteps(Width, Height);
+      stepsPerFrame = totalSteps / frames;
+      leftover = 0;
+
+      resetMirrorPosition();
+    }
+
+    function resetMirrorPosition() {
+      x = 0;
+      y = Height;
+      vx = 1;
+      vy = -1;
+      currentStep = 0;
+      ctxMirror.clearRect(0, 0, Width, Height);
+    }
+
+    function animateMirror() {
+      if (!isRunning || isPaused) return;
+
+      let stepsToDo = stepsPerFrame + leftover;
+      let intSteps = Math.floor(stepsToDo);
+      leftover = stepsToDo - intSteps;
+
+      for (let i = 0; i < intSteps; i++) {
+        x += vx;
+        y += vy;
+        if (x === Width || x === 0) {
+          vx = -vx;
+        }
+        if (y === Height || y === 0) {
+          vy = -vy;
+        }
+        // 画小圆点
+        ctxMirror.fillStyle = '#000';
+        ctxMirror.beginPath();
+        ctxMirror.arc(x, y, 1, 0, 2 * Math.PI);
+        ctxMirror.fill();
+
+        // 到达四角 => 结束
+        if ((x === 0 || x === Width) && (y === 0 || y === Height)) {
+          ctxMirror.fillStyle = 'red';
+          ctxMirror.beginPath();
+          ctxMirror.arc(x, y, 5, 0, 2 * Math.PI);
+          ctxMirror.fill();
+          isRunning = false;
+          return;
+        }
+        currentStep++;
+        if (currentStep >= totalSteps) {
+          isRunning = false;
+          return;
+        }
+      }
+      animationId = requestAnimationFrame(animateMirror);
+    }
+
+    // ----------------------- 下方"原理解释"画布(45°动态房间)的逻辑 -----------------------
+    const explanationCanvas = document.getElementById("explanationCanvas");
+    const ctxExp = explanationCanvas.getContext("2d");
+
+    // 这部分变量用于“动态生成房间”逻辑
+    let isExplanationRunning = false;  // 是否在运行
+    let isExplanationPaused = false;   // 是否暂停
+    let requestIdExp = null;
+
+    let tileX = 0, tileY = 0;      // 当前房间索引
+    let xInRoom = 0, yInRoom = 0;  // 光线在房间内坐标(左下原点)
+    let vxExp = 1, vyExp = 1;      // 固定45°(向右上)
+    let speed = 2;                 // 光线步进(像素/帧)
+
+    let usedTiles = new Set();
+    let minTileX = 0, maxTileX = 0;
+    let minTileY = 0, maxTileY = 0;
+    let pathPoints = [];
+
+    // 初始化并隐藏下方画布内容
+    function initExplanationCanvas() {
+      // 重新开始
+      tileX = 0; 
+      tileY = 0;
+      xInRoom = 0; 
+      yInRoom = 0;
+      vxExp = 1; 
+      vyExp = 1; // 45°
+      usedTiles.clear();
+      usedTiles.add("0,0");
+      minTileX = 0; maxTileX = 0;
+      minTileY = 0; maxTileY = 0;
+      pathPoints = [];
+
+      // 清空
+      ctxExp.clearRect(0, 0, explanationCanvas.width, explanationCanvas.height);
+    }
+
+    function updateExplanation() {
+      if (!isExplanationRunning || isExplanationPaused) return;
+
+      // 1) 光线以 speed 速度前进 (vxExp, vyExp)
+      xInRoom += vxExp * speed;
+      yInRoom += vyExp * speed;
+
+      // 2) 判断是否越过房间右边 / 上边
+      if (xInRoom > Width) {
+        tileX++;
+        xInRoom -= Width;
+        if (!usedTiles.has(`${tileX},${tileY}`)) {
+          usedTiles.add(`${tileX},${tileY}`);
+          minTileX = Math.min(minTileX, tileX);
+          maxTileX = Math.max(maxTileX, tileX);
+        }
+      }
+      if (yInRoom > Height) {
+        tileY++;
+        yInRoom -= Height;
+        if (!usedTiles.has(`${tileX},${tileY}`)) {
+          usedTiles.add(`${tileX},${tileY}`);
+          minTileY = Math.min(minTileY, tileY);
+          maxTileY = Math.max(maxTileY, tileY);
+        }
+      }
+
+      // 3) 记录光线的全局坐标
+      let px = tileX * Width + xInRoom;
+      let py = tileY * Height + yInRoom;
+      pathPoints.push({ px, py });
+
+      // 4) 绘制
+      drawExplanationScene();
+
+      // 循环
+      requestIdExp = requestAnimationFrame(updateExplanation);
+    }
+
+    function drawExplanationScene() {
+      ctxExp.clearRect(0, 0, explanationCanvas.width, explanationCanvas.height);
+
+      // (A) 计算包围盒
+      let totalW = (maxTileX - minTileX + 1) * Width;
+      let totalH = (maxTileY - minTileY + 1) * Height;
+      if (totalW < 1) totalW = Width;
+      if (totalH < 1) totalH = Height;
+
+      // (B) 根据画布大小计算 scale
+      let margin = 20;
+      let cw = explanationCanvas.width;
+      let ch = explanationCanvas.height;
+      let scale = Math.min(
+        (cw - margin*2) / totalW,
+        (ch - margin*2) / totalH
+      );
+
+      // (C) 先画所有房间
+      usedTiles.forEach((t) => {
+        let [tx, ty] = t.split(',').map(Number);
+        let roomLeft = tx * Width;
+        let roomBot  = ty * Height;
+
+        // 平移 & 缩放
+        let drawX = (roomLeft - minTileX*Width)*scale + margin;
+        let drawY = (roomBot  - minTileY*Height)*scale + margin;
+
+        let w = Width*scale;
+        let h = Height*scale;
+
+        // canvas默认y轴向下，这里简化处理：在计算y时用 ch - (drawY + h)
+        ctxExp.strokeStyle = "#666";
+        ctxExp.strokeRect(drawX, ch - (drawY + h), w, h);
+      });
+
+      // (D) 画光线路径
+      if (pathPoints.length > 1) {
+        ctxExp.beginPath();
+        ctxExp.strokeStyle = "red";
+        ctxExp.lineWidth = 2;
+
+        let s = pathPoints[0];
+        let sx = (s.px - minTileX*Width)*scale + margin;
+        let sy = (s.py - minTileY*Height)*scale + margin;
+        sy = ch - sy; 
+        ctxExp.moveTo(sx, sy);
+
+        for (let i = 1; i < pathPoints.length; i++) {
+          let p = pathPoints[i];
+          let px = (p.px - minTileX*Width)*scale + margin;
+          let py = (p.py - minTileY*Height)*scale + margin;
+          py = ch - py;
+          ctxExp.lineTo(px, py);
+        }
+        ctxExp.stroke();
+      }
+
+      // (E) 在当前点画个蓝色小圆
+      if (pathPoints.length > 0) {
+        let last = pathPoints[pathPoints.length - 1];
+        let lx = (last.px - minTileX*Width)*scale + margin;
+        let ly = (last.py - minTileY*Height)*scale + margin;
+        ly = ch - ly;
+        ctxExp.beginPath();
+        ctxExp.arc(lx, ly, 4, 0, 2*Math.PI);
+        ctxExp.fillStyle = "blue";
+        ctxExp.fill();
+      }
+    }
+
+    // ----------------------- 按钮事件 -----------------------
+    // 1) 真实房间反射(上方)
+    startBtn.addEventListener('click', () => {
+      if (!isRunning) {
+        isRunning = true;
+        isPaused = false;
+        animationId = requestAnimationFrame(animateMirror);
+      } else if (isPaused) {
+        isPaused = false;
+        animationId = requestAnimationFrame(animateMirror);
+      }
+      if (!isExplanationRunning) {
+        isExplanationRunning = true;
+        isExplanationPaused = false;
+        requestIdExp = requestAnimationFrame(updateExplanation);
+      } else if (isExplanationPaused) {
+        isExplanationPaused = false;
+        requestIdExp = requestAnimationFrame(updateExplanation);
+      }
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      if (isRunning && !isPaused) {
+        isPaused = true;
+      }
+      if (isExplanationRunning && !isExplanationPaused) {
+        isExplanationPaused = true;
+      }
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+      isRunning = false;
+      isPaused = false;
+      initMirrorCanvas();
+    });
+
+    // 2) 原理解释(下方：动态房间 45°)
+    explainBtn.addEventListener('click', () => {
+      // 每次点击都重置并启动
+      explanationCanvas.style.display = 'block';
+
+      // 先停止之前的动画
+      if (requestIdExp) {
+        cancelAnimationFrame(requestIdExp);
+      }
+      isExplanationRunning = false;
+      isExplanationPaused  = false;
+
+      initExplanationCanvas();
+      initExplanationCalculation();
+      // 启动
+      isExplanationRunning = true;
+      requestIdExp = requestAnimationFrame(updateExplanation);
+
+      // 同步启动上方的演示
+      if (!isRunning) {
+        isRunning = true;
+        isPaused = false;
+        animationId = requestAnimationFrame(animateMirror);
+      } else if (isPaused) {
+        isPaused = false;
+        animationId = requestAnimationFrame(animateMirror);
+      }
+
+      // 滚动到下方
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    });
+
+    function initExplanationCalculation() {
+      const timeSec = parseInt(timeSlider.value, 10);
+      const frames = 60 * timeSec;
+      const scale = Math.min(explanationCanvas.width / Width, explanationCanvas.height / Height);
+      speed = (Width + Height) / frames * scale; // 调整速度成比例
+    }
+
+    // 3) 当房间尺寸修改或时间修改时，如果“真实房间”动画没在运行，则更新
+    timeSlider.addEventListener('input', () => {
+      timeValue.textContent = timeSlider.value;
+      if (isRunning && !isPaused) {
+        initCalculation();
+      }
+      if (isExplanationRunning && !isExplanationPaused) {
+        initExplanationCalculation();
+      }
+    });
+
+    function initCalculation() {
+      totalSteps = computeTotalSteps(Width, Height);
+      const timeSec = parseInt(timeSlider.value, 10);
+      const frames = 60 * timeSec;
+      stepsPerFrame = totalSteps / frames;
+      leftover = 0;
+    }
+
+    timeSlider.addEventListener('change', () => {
+      if (!isRunning) {
+        initMirrorCanvas();
+      }
+    });
+    widthInput.addEventListener('change', () => {
+      if (!isRunning) {
+        initMirrorCanvas();
+      }
+    });
+    heightInput.addEventListener('change', () => {
+      if (!isRunning) {
+        initMirrorCanvas();
+      }
+    });
+
+    // ----------------------- 页面初始化 -----------------------
+    timeValue.textContent = timeSlider.value;
+    initMirrorCanvas();     // 初始化上方真实房间
+    initExplanationCanvas(); // 初始化下方解释画布(默认隐藏)
+
+  </script>
+</body>
+</html>
