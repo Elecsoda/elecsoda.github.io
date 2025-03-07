@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>灰林鸮进化游戏</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+  #game-area {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    margin: 20px auto;
+    background-color: #f9f9f9; /* Initially light background */
+    overflow: hidden;
+    border: 1px solid #DDD; /* Slight border to define the area */
+  }
+  .owl {
+    cursor: pointer;
+    border-radius: 50%; /* Circular owls */
+    position: absolute;
+    width: 20px;
+    height: 20px;
+  }
+  .white {
+    background-color: #f8f8f8;
+  }
+  .black {
+    background-color: #421515;
+  }
+  #phaseInfo, #gameInfo {
+    color: rgb(0, 0, 0); /* Keeping text black for contrast */
+    margin-top: 20px;
+  }
+  #toggleBackgroundBtn, #pauseButton {
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+
+<h2>灰林鸮进化游戏</h2>
+<div id="game-area"></div>
+<!-- <button id="startButton" onclick="startGame()">Start Game</button> -->
+<button id="toggleBackgroundBtn" onclick="toggleBackground()">更换背景颜色</button>
+<button id="pauseButton" onclick="pauseGame()">暂停</button>
+<div id="phaseInfo"></div>
+<div id="gameInfo"></div>
+
+<script>
+const gameArea = document.getElementById('game-area');
+const phaseInfo = document.getElementById('phaseInfo');
+const gameInfo = document.getElementById('gameInfo');
+let whiteOwls = 50;
+let blackOwls = 50;
+let phase = 'waiting'; // Could be 'waiting', 'shooting', or 'breeding'
+let isDarkMode = false; // Tracks the background color state
+let isPaused = false;
+
+function createOwl(color) {
+  const owl = document.createElement('div');
+  owl.className = `owl ${color}`;
+  owl.style.top = `${Math.random() * (gameArea.offsetHeight - 50)}px`;
+  owl.style.left = `${Math.random() * (gameArea.offsetWidth - 50)}px`;
+  // Random z-index to allow both colors to be on top
+  owl.style.zIndex = Math.floor(Math.random() * 2) + 1;
+  gameArea.appendChild(owl);
+  if (phase === 'shooting') {
+    owl.addEventListener('click', () => shootOwl(owl, color));
+  }
+}
+
+function shootOwl(owl, color) {
+  if (phase === 'shooting' && !isPaused) {
+    gameArea.removeChild(owl);
+    color === 'white' ? whiteOwls-- : blackOwls--;
+    updateGameInfo();
+  }
+}
+
+function updateGameInfo() {
+  gameInfo.textContent = `灰色灰林鸮数: ${whiteOwls},棕色灰林鸮数: ${blackOwls}`;
+}
+
+function startShootingPhase() {
+  if (isPaused) {
+    clearTimeout(timeout1);
+    clearTimeout(timeout2);
+    return;
+  }
+  phase = 'shooting';
+  phaseInfo.textContent = '捕猎季节: 用鼠标射击灰林鸮';
+  gameArea.innerHTML = '';
+  for (let i = 0; i < whiteOwls; i++) {
+    createOwl('white');
+  }
+  for (let i = 0; i < blackOwls; i++) {
+    createOwl('black');
+  }
+  timeout1 = setTimeout(startBreedingPhase, 20000); // 20 seconds until breeding phase starts
+}
+
+function startBreedingPhase() {
+  if (isPaused) {
+    clearTimeout(timeout1);
+    clearTimeout(timeout2);
+    return;
+  }
+  phase = 'breeding';
+  gameArea.innerHTML = ''; // Clear the game area
+  phaseInfo.textContent = '繁殖季节，禁止捕猎';
+
+  //gameInfo.textContent = ''; // Clear the game info during breeding
+  timeout2 = setTimeout(() => {
+    breedOwls();
+    setTimeout(() => {
+      breedOwls();
+      startShootingPhase();}, 10000); // 10 seconds for breeding phase
+  }, 10000); 
+}
+
+function breedOwls() {
+  let randomFactor1 = Math.random() * 0.05 * blackOwls; // Generate random factor between 0 and 0.1 * blackOwls
+  let randomFactor2 = Math.random() * 0.05 * whiteOwls; 
+  whiteOwls = Math.round(whiteOwls * 1.1 + randomFactor1 );
+  blackOwls = Math.round(blackOwls * 1.1 + randomFactor2);
+  updateGameInfo();
+}
+
+function startGame() {
+  if (isPaused) {
+    return;
+  }
+  if (phase === 'waiting') {
+    startShootingPhase();
+    document.getElementById('startButton').disabled = true;
+  } 
+}
+
+function pauseGame() {
+  if (!isPaused) {
+    isPaused = true;
+    phaseInfo.textContent = '游戏已暂停';
+    document.getElementById('pauseButton').textContent = '启动';
+  } else {
+    isPaused = false;
+    phaseInfo.textContent = '';
+    document.getElementById('pauseButton').textContent = '暂停';
+    if (phase === 'shooting') {
+      clearTimeout(timeout2);
+      clearTimeout(timeout1);
+      startShootingPhase();
+    }
+    else if (phase === 'breeding'){
+      clearTimeout(timeout2);
+      clearTimeout(timeout1);
+      startBreedingPhase();
+    }
+  }
+}
+
+function toggleBackground() {
+  isDarkMode = !isDarkMode;
+  gameArea.style.backgroundColor = isDarkMode ? '#421515' : '#F9F9F9'; // Toggle between dark and light background
+}
+
+startGame(); // Automatically start the game on load
+</script>
+
+</body>
+</html>
