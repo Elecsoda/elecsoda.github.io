@@ -48,14 +48,16 @@
       margin-bottom: 20px;
     }
     .card {
-      width: 100px;
-      height: 140px;
+      width: 15vw; /* 卡片宽度为视口宽度的20% */
+      height: 21vw; /* 卡片高度按比例调整 */
+      max-width: 120px; /* 设置最大宽度，避免卡片过大 */
+      max-height: 168px; /* 设置最大高度，保持比例 */
       margin: 10px auto;
       border-radius: 10px;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 24px;
+      font-size: 4vw; /* 字体大小自适应 */
       cursor: pointer;
       transition: transform 0.3s;
       color: white;
