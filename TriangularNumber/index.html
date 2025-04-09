@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>三角数演示</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            margin: 0;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4D96FF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #3c7cd4;
+        }
+
+        input[type=range] {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        label, span {
+            font-size: 16px;
+        }
+
+        .dot {
+            width: 20px;
+            height: 20px;
+            background-color: #000;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 2px;
+        }
+        #triangleContainer {
+            text-align: center;
+        }
+        .left-dot {
+            background-color: #FF6B6B; /* 柔和红色 */
+        }
+        .right-dot {
+            background-color: #4D96FF; /* 清新蓝色 */
+        }
+        .range-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>三角数演示</h1>
+
+        <!-- 调节 n 的滑块 -->
+        <div class="range-label">
+            <label for="nRange">选择 n 值：</label>
+            <span id="displayN">1</span>
+        </div>
+        <input type="range" id="nRange" min="1" max="20" value="1" />
+        <button id="sumDemoButton">求和演示</button>
+        <div id="demoContainer"></div>
+        <div id="triangleContainer"></div>
+        <div id="sumContainer"></div>
+    </div>
+
+    <script>
+        const nRange = document.getElementById('nRange');
+        const displayN = document.getElementById('displayN');
+        const triangleContainer = document.getElementById('triangleContainer');
+
+        function generateTriangle(n) {
+            // 先清空总结区域
+            const sumContainer = document.getElementById('sumContainer');
+            sumContainer.innerHTML = '';
+
+            // 每次生成前清空容器
+            triangleContainer.innerHTML = '';
+
+            // 循环生成小圆点并排成三角形
+            for (let i = 1; i <= n; i++) {
+                // 在每行开始处显示当前行的圆点个数
+                const rowLabel = document.createElement('span');
+                rowLabel.textContent = i + ' ';
+                triangleContainer.appendChild(rowLabel);
+
+                for (let j = 0; j < i; j++) {
+                    const dot = document.createElement('span');
+                    dot.classList.add('dot');
+                    triangleContainer.appendChild(dot);
+                }
+                // 每行结束后换行
+                const br = document.createElement('br');
+                triangleContainer.appendChild(br);
+            }
+            // 在三角形下方显示 1+2+...+n 的总和
+            let formula = '';
+            for (let i = 1; i <= n; i++) {
+                formula += i;
+                if (i < n) formula += ' + ';
+            }
+            const sum = (n * (n + 1)) / 2;
+            sumContainer.textContent = `总和：${formula} = ${sum}`;
+        }
+
+        // 初始化
+        generateTriangle(parseInt(nRange.value));
+
+        // 监听滑块拖动
+        nRange.addEventListener('input', () => {
+            const nValue = parseInt(nRange.value);
+            displayN.textContent = nValue;
+            generateTriangle(nValue);
+        });
+
+        const sumDemoButton = document.getElementById('sumDemoButton');
+        sumDemoButton.addEventListener('click', () => {
+            showSumDemo(parseInt(nRange.value));
+        });
+
+        function showSumDemo(n) {
+            // 清空演示容器
+            const demoContainer = document.getElementById('demoContainer');
+            demoContainer.innerHTML = '';
+
+            // 用三个临时容器分别展示三步
+            const step1Container = document.createElement('div');
+            step1Container.style.marginBottom = '30px';
+            const step2Container = document.createElement('div');
+            step2Container.style.marginBottom = '30px';
+            const step3Container = document.createElement('div');
+
+            // 第一步：在左侧生成左对齐的小圆点三角（红色）
+            function step1() {
+                step1Container.innerHTML = '';
+                for (let i = 1; i <= n; i++) {
+                    for (let j = 0; j < i; j++) {
+                        const dotLeft = document.createElement('span');
+                        dotLeft.classList.add('dot', 'left-dot'); // 红色点
+                        step1Container.appendChild(dotLeft);
+                    }
+                    step1Container.appendChild(document.createElement('br'));
+                }
+                demoContainer.appendChild(step1Container);
+            }
+
+            // 第二步：在右侧生成翻转的小圆点三角（蓝色）
+            function step2() {
+                step2Container.innerHTML = '';
+                for (let i = 1; i <= n; i++) {
+                    const row = document.createElement('div');
+
+                    // 红色点（左三角）
+                    for (let j = 0; j < i; j++) {
+                        const dotLeft = document.createElement('span');
+                        dotLeft.classList.add('dot', 'left-dot');
+                        row.appendChild(dotLeft);
+                    }
+
+                    // 空隙
+                    const spacer = document.createElement('span');
+                    spacer.style.display = 'inline-block';
+                    spacer.style.width = '30px';
+                    row.appendChild(spacer);
+
+                    // 蓝色点（右三角，从下往上递减）
+                    const blueCount = n - i + 1;
+                    for (let j = 0; j < blueCount; j++) {
+                        const dotRight = document.createElement('span');
+                        dotRight.classList.add('dot', 'right-dot');
+                        row.appendChild(dotRight);
+                    }
+
+                    step2Container.appendChild(row);
+                }
+
+                demoContainer.appendChild(step2Container);
+            }
+
+            // 第三步：把两部分靠拢，形成一个 n×(n+1) 的长方形，并显示总点数
+            function step3() {
+                step3Container.innerHTML = '';
+                for (let i = 1; i <= n; i++) {
+                    const row = document.createElement('div');
+                    row.style.position = 'relative';
+
+                    // 添加行前的算式说明
+                    const label = document.createElement('span');
+                    label.textContent = `${i} + ${n - i + 1} = ${n + 1} `;
+                    label.style.display = 'inline-block';
+                    label.style.width = '130px';
+                    row.appendChild(label);
+
+                    // 左侧三角
+                    for (let j = 0; j < i; j++) {
+                        const dotLeft = document.createElement('span');
+                        dotLeft.classList.add('dot', 'left-dot');
+                        row.appendChild(dotLeft);
+                    }
+
+                    // 右侧三角
+                    for (let j = 0; j < (n - i + 1); j++) {
+                        const dotRight = document.createElement('span');
+                        dotRight.classList.add('dot', 'right-dot');
+                        row.appendChild(dotRight);
+                    }
+
+                    const rowCountLabel = document.createElement('span');
+                    rowCountLabel.textContent = ` ← 第 ${i} 行`;
+                    row.appendChild(rowCountLabel);
+
+                    step3Container.appendChild(row);
+                }
+
+                // 计算总数
+                const rectangleTotal = n * (n + 1);
+                const triangleTotal = rectangleTotal / 2;
+                const resultText = document.createElement('div');
+                resultText.textContent = `长方形总点数：${n} × ${n + 1} = ${rectangleTotal}，对应每个三角的点数：${rectangleTotal} ÷ 2 = ${triangleTotal}`;
+                step3Container.appendChild(resultText);
+
+                demoContainer.appendChild(step3Container);
+            }
+
+            // 依次触发三个步骤，间隔更长
+            step1();
+            setTimeout(() => {
+                step2();
+                setTimeout(() => {
+                    step3();
+                }, 1500); // 第二步与第三步之间的间隔
+            }, 1500); // 第一步与第二步之间的间隔
+        }
+    </script>
+</body>
+</html>
