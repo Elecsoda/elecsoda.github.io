@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机数字生成器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-width: 200px;
+        }
+        label {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            font-size: 60px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            margin: 30px 0;
+            word-break: break-all;
+            line-height: 1.2;
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .slider-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .slider-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+        .value-display {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+            font-weight: bold;
+        }
+        @media (max-width: 600px) {
+            #result {
+                font-size: 40px;
+            }
+            .control-group {
+                min-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>随机数字生成器</h1>
+    
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="digitCount">数字位数: <span id="digitCountValue">10</span></label>
+                <div class="slider-container">
+                    <input type="range" id="digitCount" min="5" max="20" value="10">
+                    <div class="slider-info">
+                        <span>5</span>
+                        <span>20</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="toggle-group">
+                    <label for="groupToggle">启用分组:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="groupToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="control-group" id="groupSizeContainer" style="display: none;">
+                <label for="groupSize">每组位数: <span id="groupSizeValue">3</span></label>
+                <div class="slider-container">
+                    <input type="range" id="groupSize" min="1" max="5" value="3">
+                    <div class="slider-info">
+                        <span>1</span>
+                        <span>5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="generateBtn">生成随机数字</button>
+        
+        <div id="result">点击按钮生成随机数字</div>
+    </div>
+
+    <script>
+        // 获取DOM元素引用
+        const digitCountSlider = document.getElementById('digitCount');
+        const digitCountValue = document.getElementById('digitCountValue');
+        const groupToggle = document.getElementById('groupToggle');
+        const groupSizeContainer = document.getElementById('groupSizeContainer');
+        const groupSizeSlider = document.getElementById('groupSize');
+        const groupSizeValue = document.getElementById('groupSizeValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultDiv = document.getElementById('result');
+        
+        // 存储原始生成的数字
+        let originalNumber = '';
+        
+        // 更新数值显示
+        digitCountSlider.addEventListener('input', function() {
+            digitCountValue.textContent = this.value;
+        });
+        
+        groupSizeSlider.addEventListener('input', function() {
+            groupSizeValue.textContent = this.value;
+            applyGrouping(); // 保持原数字不变，只改变分组
+        });
+        
+        // 切换分组选项的显示与隐藏
+        groupToggle.addEventListener('change', function() {
+            groupSizeContainer.style.display = this.checked ? 'block' : 'none';
+            applyGrouping(); // 保持原数字不变，只改变是否分组
+        });
+        
+        // 应用分组
+        function applyGrouping() {
+            // 如果还没有生成过数字，就不执行分组
+            if (!originalNumber) {
+                return;
+            }
+            
+            const useGrouping = groupToggle.checked;
+            const groupSize = parseInt(groupSizeSlider.value);
+            
+            if (useGrouping) {
+                let groupedNumber = '';
+                for (let i = 0; i < originalNumber.length; i++) {
+                    groupedNumber += originalNumber[i];
+                    // 在每组末尾添加空格，但不在整个数字的末尾添加
+                    if ((i + 1) % groupSize === 0 && i !== originalNumber.length - 1) {
+                        groupedNumber += ' ';
+                    }
+                }
+                resultDiv.textContent = groupedNumber;
+            } else {
+                resultDiv.textContent = originalNumber;
+            }
+            
+            // 根据数字长度调整字体大小
+            adjustFontSize();
+        }
+        
+        // 生成随机数字的函数
+        function generateRandomNumber() {
+            // 获取用户设置
+            const digitCount = parseInt(digitCountSlider.value);
+            
+            // 验证输入
+            if (isNaN(digitCount) || digitCount < 5 || digitCount > 20) {
+                alert('请输入5到20之间的数字位数');
+                return;
+            }
+            
+            // 生成随机数字
+            originalNumber = '';
+            for (let i = 0; i < digitCount; i++) {
+                originalNumber += Math.floor(Math.random() * 10);
+            }
+            
+            // 应用分组（如果启用）
+            applyGrouping();
+        }
+        
+        // 根据数字长度调整字体大小
+        function adjustFontSize() {
+            // 实际数字长度（不计空格）
+            const actualLength = originalNumber.length;
+            
+            if (actualLength <= 8) {
+                resultDiv.style.fontSize = '72px';
+            } else if (actualLength <= 12) {
+                resultDiv.style.fontSize = '60px';
+            } else if (actualLength <= 16) {
+                resultDiv.style.fontSize = '48px';
+            } else {
+                resultDiv.style.fontSize = '40px';
+            }
+        }
+        
+        // 为生成按钮添加点击事件
+        generateBtn.addEventListener('click', generateRandomNumber);
+        
+        // 页面加载时生成一次随机数字
+        window.addEventListener('load', generateRandomNumber);
+    </script>
+</body>
+</html>
