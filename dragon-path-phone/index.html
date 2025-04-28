@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>神龙摆尾路径演示器 @ 孙维刚教育研究院</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            touch-action: none; /* 防止默认触摸行为 */
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: #333;
+            font-family: Arial, sans-serif;
+            z-index: 100;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 8px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            max-height: 40vh; /* 控制面板最大高度 */
+            overflow-y: auto; /* 允许滚动 */
+            font-size: 14px;
+            z-index: 100;
+        }
+        @media (max-width: 768px) {
+            /* 手机屏幕适配 */
+            #controls {
+                bottom: 5px;
+                left: 5px;
+                right: 5px;
+                padding: 5px;
+                max-height: 35vh;
+                font-size: 12px;
+            }
+            button {
+                margin: 3px;
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            #info {
+                font-size: 14px;
+            }
+            #mouseGuide {
+                display: none; /* 移动端隐藏鼠标指南 */
+            }
+            #arrowGuide {
+                bottom: auto;
+                top: 60px;
+                right: 5px;
+                max-width: 150px;
+                font-size: 12px;
+                padding: 8px;
+            }
+            #layerSelector {
+                width: 220px;
+                padding: 10px;
+            }
+            .grid-cell {
+                width: 40px;
+                height: 40px;
+            }
+        }
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        select {
+            margin: 5px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .mode-switch {
+            display: inline-block;
+            margin: 5px;
+        }
+        #keyboardGuide {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(255, 255, 222, 0.8);
+            border-radius: 4px;
+        }
+        .current-location {
+            color: #ff6600;
+            font-weight: bold;
+        }
+        
+        /* 方向键提示 */
+        #directionsInfo {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            color: #333;
+            font-size: 14px;
+            z-index: 100;
+        }
+
+        /* 方向箭头指导面板 */
+        #arrowGuide {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            color: #333;
+            font-size: 14px;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+        }
+        #arrowGuide h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #222;
+        }
+        #arrowGuide ul {
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+        #arrowGuide li {
+            margin-bottom: 5px;
+        }
+        .hint-box {
+            background-color: #fffde7;
+            border-left: 4px solid #ffc107;
+            padding: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        /* 分层选择界面 */
+        #layerSelector {
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            width: 280px;
+        }
+        #layerSelector h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        #layerButtons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        #layerSelector button {
+            margin: 0 5px;
+            width: 60px;
+        }
+        #layerSelector .hint {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        /* 九宫格选择器样式 */
+        #gridSelector {
+            display: none;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .grid-row {
+            display: flex;
+            justify-content: center;
+        }
+        .grid-cell {
+            width: 50px;
+            height: 50px;
+            margin: 2px;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            transition: all 0.2s ease;
+        }
+        .grid-cell:hover {
+            background-color: #e0f7fa;
+            border-color: #4CAF50;
+            transform: scale(1.05);
+        }
+        .grid-cell.highlighted {
+            background-color: #90EE90;
+            color: #333;
+            border-color: #2E7D32;
+            transform: scale(1.1);
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+        }
+        .cell-coordinates {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #777;
+        }
+        .steps-guide {
+            background-color: #fffde7;
+            border-left: 4px solid #ffc107;
+            padding: 8px 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .steps-guide p {
+            margin: 0;
+            color: #333;
+        }
+        .layer-selection-hint {
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #0d47a1;
+            border-left: 4px solid #2196f3;
+        }
+        /* 鼠标操作指南 */
+        #mouseGuide {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 15px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            border-left: 4px solid #3f51b5;
+        }
+        #mouseGuide h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #3f51b5;
+        }
+        #mouseGuide ul {
+            padding-left: 18px;
+            margin: 5px 0;
+        }
+        #mouseGuide li {
+            margin-bottom: 5px;
+        }
+        
+        /* 触摸操作指南 */
+        #touchGuide {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 15px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            border-left: 4px solid #3f51b5;
+            display: none; /* 默认隐藏，在移动设备上显示 */
+        }
+        @media (max-width: 768px) {
+            #touchGuide {
+                display: block;
+            }
+        }
+        #touchGuide h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #3f51b5;
+        }
+        #touchGuide ul {
+            padding-left: 18px;
+            margin: 5px 0;
+        }
+        #touchGuide li {
+            margin-bottom: 5px;
+        }
+        
+        /* 移动设备上的吐司提示样式 */
+        .toast-message {
+            font-size: 12px !important;
+            max-width: 90vw;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">3x3x3立方体随机路径</div>
+    
+    <!-- 鼠标操作指南 -->
+    <div id="mouseGuide">
+        <h4>鼠标操作指南</h4>
+        <ul>
+            <li><b>左键拖动</b>：旋转立方体</li>
+            <li><b>右键拖动</b>：平移立方体</li>
+            <li><b>滚轮</b>：缩放视图</li>
+            <li><b>中键点击</b>：重置立方体位置</li>
+        </ul>
+    </div>
+    
+    <!-- 触摸操作指南 - 为移动设备添加 -->
+    <div id="touchGuide">
+        <h4>触摸操作指南</h4>
+        <ul>
+            <li><b>单指滑动</b>：旋转立方体</li>
+            <li><b>双指滑动</b>：平移立方体</li>
+            <li><b>双指捏合</b>：缩放视图</li>
+            <li><b>双击</b>：重置立方体位置</li>
+        </ul>
+    </div>
+    
+    <div id="controls">
+        <div class="mode-switch">
+            <label><input type="radio" name="mode" value="auto" checked> 自动模式</label>
+            <label><input type="radio" name="mode" value="manual"> 手动模式</label>
+        </div>
+        <div class="steps-guide" id="autoModeGuide">
+            <p>步骤指引：1. 点击"选择起点位置"选择层和坐标 → 2. 点击"生成新路径"生成随机路径</p>
+        </div>
+        <div class="steps-guide" id="manualModeGuide" style="display:none;">
+            <p>步骤指引：1. 点击"选择起点位置"选择层和坐标 → 2. 点击"开始绘制路线"以所选点为起点 → 3. 使用方向箭头或键盘继续路径</p>
+        </div>
+        <button id="selectStartPointBtn">选择起点位置</button>
+        <select id="startPointSelect"></select>
+        <button id="generatePathBtn" style="display:none;">生成新路径</button>
+        <button id="startDrawPathBtn">开始绘制路线</button>
+        <button id="undoLastStepBtn" style="display:none;">撤回上一步</button>
+        <button id="togglePointsBtn" style="display:none;">隐藏圆点</button>
+        <button id="resetPathBtn" style="display:none;">重置路径</button>
+        <div id="pathInfo">路径: 暂无</div>
+        <div id="keyboardGuide">
+            键盘控制: 使用方向键(←↑→↓)和PgUp/PgDn键控制方向<br>
+            当前位置: <span class="current-location">(?,?,?)</span>
+        </div>
+    </div>
+
+    <!-- 分层选择界面 -->
+    <div id="layerSelector">
+        <h3>选择起点位置</h3>
+        <div class="hint">请先选择要查看的层</div>
+        <div id="layerButtons">
+            <button id="layer1Btn" class="layerBtn">第1层</button>
+            <button id="layer2Btn" class="layerBtn">第2层</button>
+            <button id="layer3Btn" class="layerBtn">第3层</button>
+        </div>
+        
+        <!-- 九宫格选择器 -->
+        <div id="gridSelector">
+            <div class="hint">点击下方九宫格选择起点</div>
+            <div class="grid-row">
+                <div class="grid-cell" data-x="0" data-y="2">
+                    <span class="cell-coordinates">(0,2)</span>
+                </div>
+                <div class="grid-cell" data-x="1" data-y="2">
+                    <span class="cell-coordinates">(1,2)</span>
+                </div>
+                <div class="grid-cell" data-x="2" data-y="2">
+                    <span class="cell-coordinates">(2,2)</span>
+                </div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-cell" data-x="0" data-y="1">
+                    <span class="cell-coordinates">(0,1)</span>
+                </div>
+                <div class="grid-cell" data-x="1" data-y="1">
+                    <span class="cell-coordinates">(1,1)</span>
+                </div>
+                <div class="grid-cell" data-x="2" data-y="1">
+                    <span class="cell-coordinates">(2,1)</span>
+                </div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-cell" data-x="0" data-y="0">
+                    <span class="cell-coordinates">(0,0)</span>
+                </div>
+                <div class="grid-cell" data-x="1" data-y="0">
+                    <span class="cell-coordinates">(1,0)</span>
+                </div>
+                <div class="grid-cell" data-x="2" data-y="0">
+                    <span class="cell-coordinates">(2,0)</span>
+                </div>
+            </div>
+        </div>
+        
+        <button id="confirmSelection" style="display:none;">确认选择</button>
+        <button id="cancelLayerSelection">取消</button>
+    </div>
+    
+    <!-- 方向箭头操作指导面板 -->
+    <div id="arrowGuide">
+        <h4>方向控制说明</h4>
+        <ul>
+            <li><strong>红色箭头</strong>：X轴方向 (左/右)</li>
+            <li><strong>绿色箭头</strong>：Y轴方向 (上/下)</li>
+            <li><strong>蓝色箭头</strong>：Z轴方向 (前/后)</li>
+        </ul>
+        <div class="hint-box">
+            提示：点击亮色箭头继续路径。
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.min.js"></script>
+    <script>
+        // 初始化场景、相机和渲染器
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 12;  // 增加初始距离，让立方体更小
+        camera.position.y = 0;  // 略微向下看，以更好地看到整个立方体
+        camera.position.x = 0;  // 从侧面看一点，以更好地感知3D效果
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 添加轨道控制器
+        const OrbitControls = function(object, domElement) {
+            this.object = object;
+            this.domElement = domElement;
+            
+            // 旋转速度
+            this.rotateSpeed = 1.0;
+            // 缩放速度
+            this.zoomSpeed = 1.2;
+            
+            // 当前位置
+            this.rotateStart = new THREE.Vector2();
+            this.rotateEnd = new THREE.Vector2();
+            this.rotateDelta = new THREE.Vector2();
+            
+            // 平移状态
+            this.isPanning = false;
+            this.panStart = new THREE.Vector2();
+            this.panEnd = new THREE.Vector2();
+            this.panDelta = new THREE.Vector2();
+            
+            // 触摸状态
+            this.touchZoomDistanceStart = 0;
+            this.touchZoomDistanceEnd = 0;
+            this.touchZoom = false;
+            
+            // 状态
+            this.isMouseDown = false;
+            this.isTouchActive = false;
+            
+            // 判断是否是移动设备
+            this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // 绑定事件 - 鼠标事件
+            this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
+            this.domElement.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+            this.domElement.addEventListener('mouseup', this.onMouseUp.bind(this), false);
+            this.domElement.addEventListener('mouseleave', this.onMouseUp.bind(this), false);
+            this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this), false);
+            this.domElement.addEventListener('contextmenu', this.onContextMenu.bind(this), false);
+            this.domElement.addEventListener('auxclick', this.onMiddleClick.bind(this), false);
+            
+            // 绑定事件 - 触摸事件
+            this.domElement.addEventListener('touchstart', this.onTouchStart.bind(this), false);
+            this.domElement.addEventListener('touchmove', this.onTouchMove.bind(this), false);
+            this.domElement.addEventListener('touchend', this.onTouchEnd.bind(this), false);
+            this.domElement.addEventListener('touchcancel', this.onTouchEnd.bind(this), false);
+            this.domElement.addEventListener('dblclick', this.onDoubleTap.bind(this), false);
+        };
+        
+        OrbitControls.prototype = {
+            onMouseDown: function(event) {
+                this.isMouseDown = true;
+                
+                if (event.button === 0) { // 左键旋转
+                    this.rotateStart.set(event.clientX, event.clientY);
+                } else if (event.button === 1 || event.button === 2) { // 中键或右键平移
+                    this.isPanning = true;
+                    this.panStart.set(event.clientX, event.clientY);
+                    event.preventDefault();
+                }
+            },
+            
+            onMouseMove: function(event) {
+                if (!this.isMouseDown) return;
+                
+                if (!this.isPanning) {
+                    // 旋转模式
+                    this.rotateEnd.set(event.clientX, event.clientY);
+                    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+                    
+                    // 旋转物体
+                    this.object.rotation.y += this.rotateDelta.x * 0.01 * this.rotateSpeed;
+                    this.object.rotation.x += this.rotateDelta.y * 0.01 * this.rotateSpeed;
+                    
+                    this.rotateStart.copy(this.rotateEnd);
+                    
+                    // 更新方向控制器
+                    updateDirectionControls();
+                } else {
+                    // 平移模式
+                    this.panEnd.set(event.clientX, event.clientY);
+                    this.panDelta.subVectors(this.panEnd, this.panStart);
+                    
+                    // 调整平移速度
+                    const panSpeed = 0.01;
+                    cubeGroup.position.x += this.panDelta.x * panSpeed;
+                    cubeGroup.position.y -= this.panDelta.y * panSpeed;
+                    
+                    this.panStart.copy(this.panEnd);
+                }
+            },
+            
+            onMouseUp: function() {
+                this.isMouseDown = false;
+                this.isPanning = false;
+            },
+            
+            onMouseWheel: function(event) {
+                event.preventDefault();
+                
+                // 鼠标滚轮缩放
+                if (event.deltaY < 0) {
+                    camera.position.z = Math.max(4, camera.position.z - this.zoomSpeed);
+                } else {
+                    camera.position.z = Math.min(20, camera.position.z + this.zoomSpeed);
+                }
+            },
+            
+            onContextMenu: function(event) {
+                event.preventDefault(); // 阻止右键菜单
+            },
+            
+            onMiddleClick: function(event) {
+                if (event.button === 1) { // 中键点击
+                    event.preventDefault();
+                    // 重置立方体位置
+                    cubeGroup.position.set(0, 0, 0);
+                }
+            },
+            
+            // 触摸控制 - 开始触摸
+            onTouchStart: function(event) {
+                event.preventDefault(); // 防止滚动和双击缩放等操作
+                this.isTouchActive = true;
+                
+                switch (event.touches.length) {
+                    case 1: // 单指触摸 - 旋转
+                        this.rotateStart.set(event.touches[0].pageX, event.touches[0].pageY);
+                        break;
+                        
+                    case 2: // 双指触摸 - 缩放和平移
+                        const dx = event.touches[0].pageX - event.touches[1].pageX;
+                        const dy = event.touches[0].pageY - event.touches[1].pageY;
+                        this.touchZoomDistanceStart = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // 平移的中心点
+                        const x = (event.touches[0].pageX + event.touches[1].pageX) / 2;
+                        const y = (event.touches[0].pageY + event.touches[1].pageY) / 2;
+                        this.panStart.set(x, y);
+                        break;
+                }
+                
+                // 更新最后触摸时间（用于检测双击）
+                this.lastTouchTime = Date.now();
+            },
+            
+            // 触摸移动
+            onTouchMove: function(event) {
+                event.preventDefault();
+                
+                if (!this.isTouchActive) return;
+                
+                switch (event.touches.length) {
+                    case 1: // 单指滑动 - 旋转
+                        this.rotateEnd.set(event.touches[0].pageX, event.touches[0].pageY);
+                        this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+                        
+                        // 旋转物体 - 调整旋转速度使其在移动设备上更合适
+                        this.object.rotation.y += this.rotateDelta.x * 0.015 * this.rotateSpeed;
+                        this.object.rotation.x += this.rotateDelta.y * 0.015 * this.rotateSpeed;
+                        
+                        this.rotateStart.copy(this.rotateEnd);
+                        
+                        // 更新方向控制器
+                        updateDirectionControls();
+                        break;
+                        
+                    case 2: // 双指滑动 - 缩放和平移
+                        // 缩放计算
+                        const dx = event.touches[0].pageX - event.touches[1].pageX;
+                        const dy = event.touches[0].pageY - event.touches[1].pageY;
+                        this.touchZoomDistanceEnd = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // 应用缩放
+                        const factor = this.touchZoomDistanceEnd / this.touchZoomDistanceStart;
+                        if (factor !== 1) {
+                            const zoomDelta = (factor > 1) ? -0.5 : 0.5;
+                            camera.position.z = Math.max(4, Math.min(20, camera.position.z + zoomDelta));
+                            this.touchZoomDistanceStart = this.touchZoomDistanceEnd;
+                        }
+                        
+                        // 平移计算
+                        const x = (event.touches[0].pageX + event.touches[1].pageX) / 2;
+                        const y = (event.touches[0].pageY + event.touches[1].pageY) / 2;
+                        this.panEnd.set(x, y);
+                        this.panDelta.subVectors(this.panEnd, this.panStart);
+                        
+                        // 调整平移速度
+                        const panSpeed = 0.005;
+                        cubeGroup.position.x += this.panDelta.x * panSpeed;
+                        cubeGroup.position.y -= this.panDelta.y * panSpeed;
+                        
+                        this.panStart.copy(this.panEnd);
+                        break;
+                }
+            },
+            
+            // 触摸结束
+            onTouchEnd: function(event) {
+                this.isTouchActive = false;
+            },
+            
+            // 双击/双击事件
+            onDoubleTap: function(event) {
+                event.preventDefault();
+                // 重置立方体位置
+                cubeGroup.position.set(0, 0, 0);
+            }
+        };
+
+        // 创建一个组来容纳所有的立方体边框
+        const cubeGroup = new THREE.Group();
+        scene.add(cubeGroup);
+        
+        // 创建3D方向控制箭头组
+        const directionControlsGroup = new THREE.Group();
+        scene.add(directionControlsGroup);
+        
+        // 立方体参数
+        const gridSize = 3; // 3x3x3网格
+        const cubeSize = 0.8; // 每个小立方体的大小
+        const spacing = 1; // 小立方体之间的间距
+        const totalSize = gridSize * spacing; // 整个3x3x3立方体的总大小
+        const offset = totalSize / 2 - spacing / 2; // 使立方体居中的偏移量
+        
+        // 存储所有格点的位置和索引
+        const gridPoints = [];
+        
+        // 创建小立方体的边框
+        function createCubeFrame(x, y, z) {
+            const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize));
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xcccccc }));  // 修改为更浅的灰色
+            
+            // 实际位置
+            const posX = x * spacing - offset;
+            const posY = y * spacing - offset;
+            const posZ = z * spacing - offset;
+            
+            line.position.set(posX, posY, posZ);
+            
+            // 存储格点信息
+            gridPoints.push({
+                index: { x, y, z },
+                position: new THREE.Vector3(posX, posY, posZ),
+                object: line
+            });
+            
+            return line;
+        }
+        
+        // 生成3x3x3立方体框架
+        for (let x = 0; x < gridSize; x++) {
+            for (let y = 0; y < gridSize; y++) {
+                for (let z = 0; z < gridSize; z++) {
+                    const cubeFrame = createCubeFrame(x, y, z);
+                    cubeGroup.add(cubeFrame);
+                }
+            }
+        }
+        
+        // 创建路径对象
+        let pathLine = null;
+        let pathAnimation = false; // 默认不播放动画
+        let animationProgress = 0;
+        let manualMode = true; // 默认为手动模式
+        let currentManualPath = [];
+        let visitedPoints = new Set();
+        let currentPointIndex = -1;
+        let showPoints = true; // 是否显示圆点
+        let autoModeStartPoint = null; // 自动模式下的起点
+        
+        // 分层选择状态变量
+        let isSelectingLayer = false;
+        let selectedLayer = -1;
+        let originalCameraPosition = null;
+        let originalCubeRotation = null;
+        let hiddenCubes = [];
+        
+        // 3D方向控制箭头
+        const directionArrows = {
+            xPlus: null,
+            xMinus: null,
+            yPlus: null,
+            yMinus: null,
+            zPlus: null,
+            zMinus: null
+        };
+        
+        // 创建3D方向控制箭头
+        function createDirectionArrows() {
+            // 创建箭头几何体
+            const createArrow = (color, direction, position) => {
+                // 箭头参数 - 调大了尺寸，使其更容易点击
+                const arrowLength = 1.8; // 箭头长度
+                const arrowHeadLength = 0.5; // 箭头头部长度
+                const arrowHeadWidth = 0.4; // 箭头头部宽度
+                
+                // 创建箭头方向
+                let dir;
+                if (direction === 'x+') dir = new THREE.Vector3(1, 0, 0);
+                else if (direction === 'x-') dir = new THREE.Vector3(-1, 0, 0);
+                else if (direction === 'y+') dir = new THREE.Vector3(0, 1, 0);
+                else if (direction === 'y-') dir = new THREE.Vector3(0, -1, 0);
+                else if (direction === 'z+') dir = new THREE.Vector3(0, 0, 1);
+                else if (direction === 'z-') dir = new THREE.Vector3(0, 0, -1);
+                
+                // 创建箭头
+                const arrow = new THREE.ArrowHelper(
+                    dir,
+                    new THREE.Vector3(0, 0, 0),
+                    arrowLength,
+                    color,
+                    arrowHeadLength,
+                    arrowHeadWidth
+                );
+                
+                // 设置箭头射线检测
+                arrow.cone.userData = { direction, originalColor: color, isHovered: false };
+                arrow.line.userData = { direction, originalColor: color, isHovered: false };
+                
+                return arrow;
+            };
+            
+            // 创建一个组来包含原始方向的箭头
+            const arrowsOriginalGroup = new THREE.Group();
+            
+            // 创建六个方向的箭头 - 使用更鲜艳的颜色
+            directionArrows.xPlus = createArrow(0xFF2222, 'x+');  // 更亮的红色
+            directionArrows.xMinus = createArrow(0xFF8888, 'x-'); // 浅红色
+            directionArrows.yPlus = createArrow(0x22FF22, 'y+');  // 更亮的绿色
+            directionArrows.yMinus = createArrow(0x88FF88, 'y-'); // 浅绿色
+            directionArrows.zPlus = createArrow(0x2222FF, 'z+');  // 更亮的蓝色
+            directionArrows.zMinus = createArrow(0x8888FF, 'z-'); // 浅蓝色
+            
+            // 添加到原始方向组
+            Object.values(directionArrows).forEach(arrow => {
+                arrowsOriginalGroup.add(arrow);
+                // 初始状态为禁用
+                setArrowEnabled(arrow, false);
+            });
+            
+            // 将原始方向组添加到方向控制组
+            directionControlsGroup.add(arrowsOriginalGroup);
+            
+            // 设置方向控制组的固定位置 - 移动到立方体下方，适配移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                // 在移动设备上，将控制器置于立方体下方
+                directionControlsGroup.position.set(0, -6, 0);
+            } else {
+                // 在桌面设备上，保持在右侧
+                directionControlsGroup.position.set(6, 0, 0);
+            }
+            
+            // 添加点击和悬停事件
+            setupArrowInteractionEvents();
+        }
+        
+        // 设置箭头启用/禁用状态
+        function setArrowEnabled(arrow, enabled) {
+            if (!arrow) return;
+            
+            // 存储状态
+            arrow.userData = arrow.userData || {};
+            arrow.userData.enabled = enabled;
+            
+            // 设置基础材质属性
+            if (arrow.line && arrow.line.material) {
+                arrow.line.material.transparent = true;
+                arrow.line.userData.enabled = enabled;
+            }
+            
+            if (arrow.cone && arrow.cone.material) {
+                arrow.cone.material.transparent = true;
+                arrow.cone.userData.enabled = enabled;
+            }
+            
+            // 根据启用状态设置不同的透明度和颜色
+            updateArrowAppearance(arrow);
+        }
+        
+        // 更新箭头外观
+        function updateArrowAppearance(arrow) {
+            if (!arrow) return;
+            
+            const enabled = arrow.userData && arrow.userData.enabled;
+            const isHovered = arrow.userData && arrow.userData.isHovered;
+            
+            // 根据状态设置不同的透明度
+            let opacity, lineColor, coneColor;
+            
+            if (!enabled) {
+                // 禁用状态 - 更低的透明度
+                opacity = 0.2;
+                // 使用灰色调
+                lineColor = 0x999999;
+                coneColor = 0x999999;
+            } else if (isHovered) {
+                // 悬停状态 - 全不透明并加亮
+                opacity = 1.0;
+                // 获取原始颜色并加亮
+                if (arrow.line && arrow.line.userData && arrow.line.userData.originalColor) {
+                    // 创建更亮的颜色
+                    const color = new THREE.Color(arrow.line.userData.originalColor);
+                    color.multiplyScalar(1.5); // 增加亮度
+                    lineColor = color.getHex();
+                    coneColor = color.getHex();
+                }
+            } else {
+                // 启用但未悬停状态 - 正常显示
+                opacity = 0.85;
+                // 使用原始颜色
+                if (arrow.line && arrow.line.userData && arrow.line.userData.originalColor) {
+                    lineColor = arrow.line.userData.originalColor;
+                    coneColor = arrow.line.userData.originalColor;
+                }
+            }
+            
+            // 应用样式
+            if (arrow.line && arrow.line.material) {
+                arrow.line.material.opacity = opacity;
+                if (lineColor) arrow.line.material.color.setHex(lineColor);
+            }
+            
+            if (arrow.cone && arrow.cone.material) {
+                arrow.cone.material.opacity = opacity;
+                if (coneColor) arrow.cone.material.color.setHex(coneColor);
+            }
+        }
+        
+        // 设置箭头交互事件
+        function setupArrowInteractionEvents() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            // 判断是否是移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // 处理点击/触摸事件的通用函数
+            function handleInteraction(clientX, clientY) {
+                // 计算鼠标/触摸位置
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+                
+                // 设置射线
+                raycaster.setFromCamera(mouse, camera);
+                
+                // 检测所有箭头的箭头头部和线段
+                const arrowParts = [];
+                Object.values(directionArrows).forEach(arrow => {
+                    if (arrow.cone) arrowParts.push(arrow.cone);
+                    if (arrow.line) arrowParts.push(arrow.line);
+                });
+                
+                const intersects = raycaster.intersectObjects(arrowParts);
+                
+                if (intersects.length > 0) {
+                    const clickedObject = intersects[0].object;
+                    
+                    // 确保箭头已启用
+                    if (clickedObject.userData && clickedObject.userData.enabled) {
+                        let direction;
+                        
+                        if (clickedObject.userData.direction) {
+                            direction = clickedObject.userData.direction;
+                        } else if (clickedObject.parent && clickedObject.parent.userData.direction) {
+                            direction = clickedObject.parent.userData.direction;
+                        }
+                        
+                        if (direction) {
+                            let dx = 0, dy = 0, dz = 0;
+                            
+                            switch(direction) {
+                                case 'x+': dx = 1; break;
+                                case 'x-': dx = -1; break;
+                                case 'y+': dy = 1; break;
+                                case 'y-': dy = -1; break;
+                                case 'z+': dz = 1; break;
+                                case 'z-': dz = -1; break;
+                            }
+                            
+                            moveInDirection(dx, dy, dz);
+                        }
+                    } else if (clickedObject.userData) {
+                        // 如果箭头被禁用，显示提示
+                        showToast('该方向不可行，请选择亮色箭头方向');
+                    }
+                }
+            }
+            
+            // 对于移动设备 - 触摸开始事件 
+            renderer.domElement.addEventListener('touchstart', function(event) {
+                if (!manualMode || currentManualPath.length === 0) return;
+                
+                // 阻止默认行为，以防止页面滚动
+                event.preventDefault();
+                
+                // 只处理单指触摸，避免与缩放/平移冲突
+                if (event.touches.length === 1) {
+                    // 使用第一个触摸点
+                    const touch = event.touches[0];
+                    
+                    // 延迟处理，以区分点击和滑动
+                    setTimeout(() => {
+                        handleInteraction(touch.clientX, touch.clientY);
+                    }, 100);
+                }
+            }, false);
+            
+            // 鼠标移动事件 - 用于悬停检测
+            renderer.domElement.addEventListener('mousemove', function(event) {
+                // 如果是移动设备，忽略鼠标移动事件
+                if (isMobile) return;
+                
+                // 计算鼠标位置
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                // 设置射线
+                raycaster.setFromCamera(mouse, camera);
+                
+                // 检测所有箭头的箭头头部和线段
+                const arrowParts = [];
+                Object.values(directionArrows).forEach(arrow => {
+                    if (arrow.cone) arrowParts.push(arrow.cone);
+                    if (arrow.line) arrowParts.push(arrow.line);
+                });
+                
+                const intersects = raycaster.intersectObjects(arrowParts);
+                
+                // 重置所有箭头的悬停状态
+                Object.values(directionArrows).forEach(arrow => {
+                    if (arrow.userData) arrow.userData.isHovered = false;
+                    if (arrow.cone && arrow.cone.userData) arrow.cone.userData.isHovered = false;
+                    if (arrow.line && arrow.line.userData) arrow.line.userData.isHovered = false;
+                    updateArrowAppearance(arrow);
+                });
+                
+                // 设置悬停的箭头
+                if (intersects.length > 0) {
+                    const hoveredObject = intersects[0].object;
+                    let hoveredArrow = null;
+                    
+                    // 找到被悬停的箭头
+                    Object.values(directionArrows).forEach(arrow => {
+                        if (arrow.cone === hoveredObject || arrow.line === hoveredObject) {
+                            hoveredArrow = arrow;
+                        }
+                    });
+                    
+                    if (hoveredArrow) {
+                        // 设置悬停状态
+                        hoveredArrow.userData.isHovered = true;
+                        if (hoveredArrow.cone) hoveredArrow.cone.userData.isHovered = true;
+                        if (hoveredArrow.line) hoveredArrow.line.userData.isHovered = true;
+                        updateArrowAppearance(hoveredArrow);
+                        
+                        // 改变鼠标样式
+                        if (hoveredArrow.userData.enabled) {
+                            renderer.domElement.style.cursor = 'pointer';
+                        } else {
+                            renderer.domElement.style.cursor = 'not-allowed';
+                        }
+                    }
+                } else {
+                    // 恢复默认鼠标样式
+                    renderer.domElement.style.cursor = 'auto';
+                }
+            });
+            
+            // 点击事件 - 桌面设备
+            renderer.domElement.addEventListener('click', function(event) {
+                if (!manualMode || currentManualPath.length === 0 || isMobile) return;
+                
+                handleInteraction(event.clientX, event.clientY);
+            });
+        }
+        
+        // 更新方向控制器状态
+        function updateDirectionControls() {
+            // 使方向控制组的旋转与立方体保持一致
+            directionControlsGroup.children[0].rotation.copy(cubeGroup.rotation);
+            
+            // 如果没有当前路径，禁用所有箭头
+            if (currentManualPath.length === 0) {
+                Object.values(directionArrows).forEach(arrow => {
+                    setArrowEnabled(arrow, false);
+                });
+                return;
+            }
+            
+            // 获取当前位置
+            const currentPoint = currentManualPath[currentManualPath.length - 1];
+            const currentIndex = currentPoint.index;
+            
+            // 检查每个方向是否有效
+            const directions = [
+                { dx: 1, dy: 0, dz: 0, arrow: directionArrows.xPlus },
+                { dx: -1, dy: 0, dz: 0, arrow: directionArrows.xMinus },
+                { dx: 0, dy: 1, dz: 0, arrow: directionArrows.yPlus },
+                { dx: 0, dy: -1, dz: 0, arrow: directionArrows.yMinus },
+                { dx: 0, dy: 0, dz: 1, arrow: directionArrows.zPlus },
+                { dx: 0, dy: 0, dz: -1, arrow: directionArrows.zMinus }
+            ];
+            
+            directions.forEach(dir => {
+                const nextPoint = findPointByIndex(
+                    currentIndex.x + dir.dx,
+                    currentIndex.y + dir.dy,
+                    currentIndex.z + dir.dz
+                );
+                
+                let enabled = false;
+                
+                if (nextPoint) {
+                    const nextPointIndex = gridPoints.indexOf(nextPoint);
+                    enabled = !visitedPoints.has(nextPointIndex);
+                }
+                
+                setArrowEnabled(dir.arrow, enabled);
+            });
+        }
+        
+        // 初始化下拉菜单
+        const startPointSelect = document.getElementById('startPointSelect');
+        for (let i = 0; i < gridPoints.length; i++) {
+            const point = gridPoints[i];
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `点 (${point.index.x}, ${point.index.y}, ${point.index.z})`;
+            startPointSelect.appendChild(option);
+        }
+        
+        // 随机选择一个点作为默认起点
+        startPointSelect.selectedIndex = Math.floor(Math.random() * gridPoints.length);
+        
+        // 检查两个点是否相邻（曼哈顿距离为1）
+        function areAdjacent(p1, p2) {
+            const dx = Math.abs(p1.index.x - p2.index.x);
+            const dy = Math.abs(p1.index.y - p2.index.y);
+            const dz = Math.abs(p1.index.z - p2.index.z);
+            
+            // 曼哈顿距离为1表示相邻（只有一个坐标相差1，其他坐标相同）
+            return (dx + dy + dz === 1);
+        }
+        
+        // 获取指定点的所有未访问的相邻点
+        function getUnvisitedNeighbors(point, visitedPoints) {
+            return gridPoints.filter(p => !visitedPoints.includes(p) && areAdjacent(point, p));
+        }
+        
+        // **优化的哈密顿路径生成算法**
+        // 使用迭代加深深度优先搜索(IDDFS)和Warnsdorff启发式
+        function generateOptimizedHamiltonianPath(startPointIndex) {
+            const startPoint = gridPoints[startPointIndex];
+            const path = [startPoint];
+            const visited = new Set([startPointIndex]);
+            
+            // Warnsdorff启发式：选择邻居最少的下一个点
+            function getNextPointByWarnsdorff(currentPoint, visited) {
+                const unvisitedNeighbors = gridPoints.filter(p => 
+                    !visited.has(gridPoints.indexOf(p)) && areAdjacent(currentPoint, p));
+                
+                if (unvisitedNeighbors.length === 0) return null;
+                
+                // 对每个邻居进行评分 - 邻居数量越少越优先
+                return unvisitedNeighbors.sort((a, b) => {
+                    const aNeighbors = gridPoints.filter(p => 
+                        !visited.has(gridPoints.indexOf(p)) && areAdjacent(a, p)).length;
+                    const bNeighbors = gridPoints.filter(p => 
+                        !visited.has(gridPoints.indexOf(p)) && areAdjacent(b, p)).length;
+                    
+                    // 优先选择未访问邻居较少的点 (Warnsdorff规则)
+                    return aNeighbors - bNeighbors;
+                })[0];
+            }
+            
+            // 迭代深度优先搜索
+            function findPath() {
+                while (visited.size < gridPoints.length) {
+                    const currentPoint = path[path.length - 1];
+                    const nextPoint = getNextPointByWarnsdorff(currentPoint, visited);
+                    
+                    if (nextPoint) {
+                        path.push(nextPoint);
+                        visited.add(gridPoints.indexOf(nextPoint));
+                    } else {
+                        // 回溯 - 移除死路
+                        if (path.length <= 1) return false; // 无法找到路径
+                        
+                        const lastPoint = path.pop();
+                        visited.delete(gridPoints.indexOf(lastPoint));
+                    }
+                }
+                
+                return true;
+            }
+            
+            const success = findPath();
+            return success ? path : null;
+        }
+        
+        // 新的随机路径生成算法 - 随机方向行走直到无法继续
+        function generateRandomPath(startPointIndex) {
+            const startPoint = gridPoints[startPointIndex];
+            const path = [startPoint];
+            const visited = new Set([startPointIndex]);
+            
+            // 获取当前点的未访问邻居
+            function getUnvisitedNeighbors(currentPoint) {
+                return gridPoints.filter(p => 
+                    !visited.has(gridPoints.indexOf(p)) && areAdjacent(currentPoint, p));
+            }
+            
+            // 随机选择下一个点
+            function getRandomNextPoint(neighbors) {
+                if (neighbors.length === 0) return null;
+                // 随机选择一个邻居
+                const randomIndex = Math.floor(Math.random() * neighbors.length);
+                return neighbors[randomIndex];
+            }
+            
+            // 随机路径生成过程
+            let currentPoint = startPoint;
+            let stuck = false;
+            
+            while (!stuck) {
+                const neighbors = getUnvisitedNeighbors(currentPoint);
+                
+                if (neighbors.length > 0) {
+                    // 随机选择下一个点
+                    const nextPoint = getRandomNextPoint(neighbors);
+                    path.push(nextPoint);
+                    visited.add(gridPoints.indexOf(nextPoint));
+                    currentPoint = nextPoint;
+                } else {
+                    // 无路可走，结束路径
+                    stuck = true;
+                }
+            }
+            
+            return path;
+        }
+        
+        // 绘制路径
+        function drawPath(path) {
+            // 移除旧路径
+            if (pathLine) {
+                cubeGroup.remove(pathLine);
+            }
+            
+            // 创建新路径
+            const pathPoints = path.map(p => p.position);
+            const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+            const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
+            pathLine = new THREE.Line(pathGeometry, pathMaterial);
+            // 存储原始路径数据，以便动画结束后重新绘制
+            pathLine.userData = { originalPath: path };
+            cubeGroup.add(pathLine);
+            
+            // 显示路径信息
+            const pathInfo = document.getElementById('pathInfo');
+            pathInfo.textContent = '路径: ' + path.map(p => `(${p.index.x},${p.index.y},${p.index.z})`).join(' → ');
+            
+            // 重置动画进度
+            animationProgress = 0;
+            
+            // 创建路径顶点球体
+            createPathSpheres(path);
+            
+            return pathLine;
+        }
+        
+        // 绘制手动模式的路径
+        function drawManualPath() {
+            // 移除旧路径
+            if (pathLine) {
+                cubeGroup.remove(pathLine);
+            }
+            
+            if (currentManualPath.length < 2) return;
+            
+            // 创建新路径
+            const pathPoints = currentManualPath.map(p => p.position);
+            const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+            const pathMaterial = new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 3 });
+            pathLine = new THREE.Line(pathGeometry, pathMaterial);
+            cubeGroup.add(pathLine);
+            
+            // 显示路径信息
+            const pathInfo = document.getElementById('pathInfo');
+            pathInfo.textContent = '路径: ' + currentManualPath.map(p => `(${p.index.x},${p.index.y},${p.index.z})`).join(' → ');
+            
+            // 创建路径顶点球体
+            createPathSpheres(currentManualPath);
+            
+            // 更新当前位置显示
+            document.querySelector('.current-location').textContent = 
+                `(${currentManualPath[currentManualPath.length-1].index.x},
+                 ${currentManualPath[currentManualPath.length-1].index.y},
+                 ${currentManualPath[currentManualPath.length-1].index.z})`;
+            
+            return pathLine;
+        }
+        
+        // 标记路径顶点
+        let pathSpheres = [];
+        function createPathSpheres(path) {
+            // 移除旧的球体
+            pathSpheres.forEach(sphere => cubeGroup.remove(sphere));
+            pathSpheres = [];
+            
+            // 创建新的球体
+            path.forEach((point, index) => {
+                const sphereGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                let color;
+                
+                if (index === 0) {
+                    color = 0x4CAF50; // 起点用绿色，更鲜艳
+                } else if (index === path.length - 1) {
+                    color = 0xFF5252; // 终点用红色，更鲜艳
+                } else {
+                    color = 0x2196F3; // 中间点用蓝色，更鲜艳
+                }
+                
+                const sphereMaterial = new THREE.MeshBasicMaterial({ color: color });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                sphere.position.copy(point.position);
+                pathSpheres.push(sphere);
+                cubeGroup.add(sphere);
+            });
+        }
+        
+        // 处理点击立方体的事件 - 修改以支持选择初始点
+        function makeGridPointsClickable() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            // 点击处理通用函数 (同时支持鼠标点击和触摸)
+            function handleCubeClick(clientX, clientY) {
+                // 计算鼠标/触摸点位置
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+                
+                // 设置射线
+                raycaster.setFromCamera(mouse, camera);
+                
+                // 获取相交的对象
+                const intersects = raycaster.intersectObjects(gridPoints.map(p => p.object), true);
+                
+                if (intersects.length > 0) {
+                    // 找到对应的格点
+                    const clickedObject = intersects[0].object;
+                    const clickedPoint = gridPoints.find(p => p.object === clickedObject);
+                    
+                    if (clickedPoint) {
+                        if (isSelectingLayer && selectedLayer >= 0) {
+                            // 在选择层模式下，设置起点并恢复视图
+                            if (clickedPoint.index.z === selectedLayer) {
+                                const clickedIndex = gridPoints.indexOf(clickedPoint);
+                                startPointSelect.value = clickedIndex;
+                                
+                                // 重置高亮
+                                gridPoints.forEach(point => {
+                                    if (point.object.material.color.getHex() !== 0xcccccc) {
+                                        point.object.material.color.set(0xcccccc);
+                                    }
+                                });
+                                
+                                // 高亮选中的起点
+                                clickedPoint.object.material.color.set(0x90EE90); // 浅绿色
+                                
+                                if (manualMode) {
+                                    resetManualPath();
+                                } else {
+                                    autoModeStartPoint = clickedPoint;
+                                }
+                                
+                                // 隐藏选择器并恢复视图
+                                hideLayerSelector();
+                                restoreOriginalView();
+                                
+                                // 显示提示
+                                showToast(`已选择起点(${clickedPoint.index.x}, ${clickedPoint.index.y}, ${clickedPoint.index.z})`);
+                            }
+                        } else if (manualMode) {
+                            // 手动模式 - 处理点的选择
+                            handlePointSelection(clickedPoint);
+                        } else {
+                            // 自动模式 - 设置起点
+                            const clickedIndex = gridPoints.indexOf(clickedPoint);
+                            startPointSelect.value = clickedIndex;
+                            
+                            // 重置高亮
+                            gridPoints.forEach(point => {
+                                if (point.object.material.color.getHex() !== 0xcccccc) {
+                                    point.object.material.color.set(0xcccccc);
+                                }
+                            });
+                            
+                            // 高亮选中的起点
+                            clickedPoint.object.material.color.set(0x90EE90); // 浅绿色
+                            autoModeStartPoint = clickedPoint;
+                        }
+                    }
+                }
+            }
+            
+            // 鼠标点击事件
+            renderer.domElement.addEventListener('click', function(event) {
+                // 避免与箭头点击冲突
+                if (event.target !== renderer.domElement) return;
+                handleCubeClick(event.clientX, event.clientY);
+            });
+            
+            // 触摸结束事件 - 用于移动设备
+            renderer.domElement.addEventListener('touchend', function(event) {
+                // 避免与箭头触摸冲突
+                if (event.target !== renderer.domElement) return;
+                
+                // 确保是单指触摸而不是多指操作后的结束事件
+                if (event.changedTouches.length === 1) {
+                    const touch = event.changedTouches[0];
+                    handleCubeClick(touch.clientX, touch.clientY);
+                }
+            });
+        }
+        
+        // 处理选择点的逻辑
+        function handlePointSelection(point) {
+            const pointIndex = gridPoints.indexOf(point);
+            
+            // 如果是第一个点或者是相邻且未访问的点
+            if (currentManualPath.length === 0 || 
+                (areAdjacent(currentManualPath[currentManualPath.length-1], point) && 
+                 !visitedPoints.has(pointIndex))) {
+                
+                currentManualPath.push(point);
+                visitedPoints.add(pointIndex);
+                currentPointIndex = pointIndex;
+                drawManualPath();
+                
+                // 更新方向控制器状态
+                updateDirectionControls();
+                
+                // 检查是否完成路径
+                if (visitedPoints.size === gridPoints.length) {
+                    let notification = document.createElement('div');
+                    notification.style.position = 'fixed';
+                    notification.style.top = '50%';
+                    notification.style.left = '50%';
+                    notification.style.transform = 'translate(-50%, -50%)';
+                    notification.style.background = 'rgba(0, 0, 0, 0.7)';
+                    notification.style.color = 'white';
+                    notification.style.padding = '20px';
+                    notification.style.borderRadius = '10px';
+                    notification.style.zIndex = '1000';
+                    notification.textContent = '恭喜！你已经访问了所有点！';
+                    document.body.appendChild(notification);
+                    
+                    // 3秒后自动消失
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 3000);
+                }
+            } else if (currentManualPath.length > 0) {
+                showToast('只能选择相邻且未访问过的点！');
+            }
+        }
+        
+        // 按指定方向移动
+        function moveInDirection(dx, dy, dz) {
+            if (currentManualPath.length === 0) return;
+            
+            const currentPoint = currentManualPath[currentManualPath.length - 1];
+            const currentIndex = currentPoint.index;
+            
+            const nextPoint = findPointByIndex(
+                currentIndex.x + dx,
+                currentIndex.y + dy,
+                currentIndex.z + dz
+            );
+            
+            if (nextPoint) {
+                const nextPointIndex = gridPoints.indexOf(nextPoint);
+                if (!visitedPoints.has(nextPointIndex)) {
+                    handlePointSelection(nextPoint);
+                    
+                    // 显示移动方向提示
+                    let directionText = '';
+                    if (dx === 1) directionText = "X轴正方向";
+                    else if (dx === -1) directionText = "X轴负方向";
+                    else if (dy === 1) directionText = "Y轴正方向";
+                    else if (dy === -1) directionText = "Y轴负方向";
+                    else if (dz === 1) directionText = "Z轴正方向";
+                    else if (dz === -1) directionText = "Z轴负方向";
+                    
+                    showToast(`移动到: (${nextPoint.index.x}, ${nextPoint.index.y}, ${nextPoint.index.z}) - ${directionText}`);
+                } else {
+                    showToast('该点已被访问过！');
+                }
+            } else {
+                showToast('无法向该方向移动，已到达立方体边界！');
+            }
+        }
+        
+        // 键盘控制
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', function(event) {
+                if (!manualMode || currentManualPath.length === 0) return;
+                
+                const currentPoint = currentManualPath[currentManualPath.length - 1];
+                const currentIndex = currentPoint.index;
+                let dx = 0, dy = 0, dz = 0;
+                
+                switch(event.key) {
+                    case 'ArrowRight': // x+1
+                        dx = 1;
+                        break;
+                    case 'ArrowLeft': // x-1
+                        dx = -1;
+                        break;
+                    case 'ArrowUp': // y+1
+                        dy = 1;
+                        break;
+                    case 'ArrowDown': // y-1
+                        dy = -1;
+                        break;
+                    case 'PageUp': // z+1
+                        dz = 1;
+                        break;
+                    case 'PageDown': // z-1
+                        dz = -1;
+                        break;
+                    default:
+                        return;
+                }
+                
+                // 检查该方向是否可行
+                const nextPoint = findPointByIndex(
+                    currentIndex.x + dx,
+                    currentIndex.y + dy,
+                    currentIndex.z + dz
+                );
+                
+                if (nextPoint) {
+                    const nextPointIndex = gridPoints.indexOf(nextPoint);
+                    if (!visitedPoints.has(nextPointIndex)) {
+                        moveInDirection(dx, dy, dz);
+                    } else {
+                        showToast('该方向已被访问过，请选择其他方向！');
+                    }
+                } else {
+                    showToast('该方向超出立方体范围！');
+                }
+            });
+        }
+        
+        // 显示临时消息
+        function showToast(message) {
+            // 检查是否已存在toast，如果有则移除
+            const existingToast = document.querySelector('.toast-message');
+            if (existingToast) {
+                document.body.removeChild(existingToast);
+            }
+            
+            let toast = document.createElement('div');
+            toast.className = 'toast-message';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '100px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = 'rgba(0, 0, 0, 0.8)';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '1000';
+            toast.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
+            toast.style.fontSize = '14px';
+            toast.style.textAlign = 'center'; // 确保文本居中
+            toast.style.maxWidth = '90%'; // 限制最大宽度，防止在手机上溢出
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            // 2秒后自动消失
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 2000);
+        }
+        
+        // 模式切换处理
+        function setupModeSwitch() {
+            const modeRadios = document.querySelectorAll('input[name="mode"]');
+            const generatePathBtn = document.getElementById('generatePathBtn');
+            const togglePointsBtn = document.getElementById('togglePointsBtn');
+            const resetPathBtn = document.getElementById('resetPathBtn');
+            const keyboardGuide = document.getElementById('keyboardGuide');
+            const arrowGuide = document.getElementById('arrowGuide');
+            const startDrawPathBtn = document.getElementById('startDrawPathBtn');
+            const undoLastStepBtn = document.getElementById('undoLastStepBtn');
+            const autoModeGuide = document.getElementById('autoModeGuide');
+            const manualModeGuide = document.getElementById('manualModeGuide');
+            
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    manualMode = this.value === 'manual';
+                    
+                    if (manualMode) {
+                        // 切换到手动模式
+                        generatePathBtn.style.display = 'none';
+                        startDrawPathBtn.style.display = 'inline-block';
+                        togglePointsBtn.style.display = 'none';
+                        resetPathBtn.style.display = 'none';
+                        undoLastStepBtn.style.display = 'inline-block';
+                        keyboardGuide.style.display = 'block';
+                        directionControlsGroup.visible = true;
+                        arrowGuide.style.display = 'block'; // 显示方向箭头指导
+                        autoModeGuide.style.display = 'none';
+                        manualModeGuide.style.display = 'block';
+                        resetManualPath();
+                        
+                        // 重置高亮
+                        gridPoints.forEach(point => {
+                            if (point.object.material.color.getHex() !== 0xcccccc) {
+                                point.object.material.color.set(0xcccccc);
+                            }
+                        });
+                    } else {
+                        // 切换到自动模式
+                        generatePathBtn.style.display = 'inline-block';
+                        startDrawPathBtn.style.display = 'none';
+                        togglePointsBtn.style.display = 'inline-block'; // 显示圆点切换按钮
+                        resetPathBtn.style.display = 'none';
+                        undoLastStepBtn.style.display = 'none';
+                        keyboardGuide.style.display = 'none';
+                        directionControlsGroup.visible = false;
+                        arrowGuide.style.display = 'none'; // 隐藏方向箭头指导
+                        autoModeGuide.style.display = 'block';
+                        manualModeGuide.style.display = 'none';
+                        
+                        // 高亮当前选中的起点
+                        const startIndex = parseInt(startPointSelect.value);
+                        const startPoint = gridPoints[startIndex];
+                        startPoint.object.material.color.set(0x90EE90); // 浅绿色
+                        autoModeStartPoint = startPoint;
+                    }
+                });
+            });
+        }
+        
+        // 生成新路径按钮事件
+        document.getElementById('generatePathBtn').addEventListener('click', function() {
+            const startIndex = parseInt(startPointSelect.value);
+            
+            if (!manualMode) {
+                // 自动模式 - 生成新路径
+                generatePath(startIndex);
+            }
+        });
+        
+        // 开始绘制路线按钮事件 
+        document.getElementById('startDrawPathBtn').addEventListener('click', function() {
+            if (manualMode) {
+                // 清空现有路径
+                resetManualPath();
+                
+                // 以当前选中的点为起点
+                const startIndex = parseInt(startPointSelect.value);
+                const startPoint = gridPoints[startIndex];
+                handlePointSelection(startPoint);
+                
+                // 启用方向箭头
+                directionControlsGroup.visible = true;
+                updateDirectionControls();
+                
+                // 显示撤回按钮
+                document.getElementById('undoLastStepBtn').style.display = 'inline-block';
+                
+                // 显示提示
+                showToast('已开始绘制路线，请使用方向箭头或键盘继续');
+            }
+        });
+        
+        // 撤回上一步按钮事件
+        document.getElementById('undoLastStepBtn').addEventListener('click', function() {
+            if (manualMode && currentManualPath.length > 1) {
+                // 移除最后一个点
+                const lastPoint = currentManualPath.pop();
+                const lastPointIndex = gridPoints.indexOf(lastPoint);
+                visitedPoints.delete(lastPointIndex);
+                
+                // 重新绘制路径
+                drawManualPath();
+                
+                // 更新方向控制器
+                updateDirectionControls();
+                
+                showToast('已撤回到上一步');
+            } else if (currentManualPath.length <= 1) {
+                showToast('已经是起点，无法继续撤回');
+            }
+        });
+        
+        // 重置路径按钮事件
+        document.getElementById('resetPathBtn').addEventListener('click', resetManualPath);
+        
+        // 切换圆点显示按钮事件
+        document.getElementById('togglePointsBtn').addEventListener('click', function() {
+            showPoints = !showPoints;
+            this.textContent = showPoints ? '隐藏圆点' : '显示圆点';
+            
+            // 更新圆点可见性
+            pathSpheres.forEach(sphere => {
+                sphere.visible = showPoints;
+            });
+        });
+        
+        // 生成路径的主函数
+        function generatePath(startIndex) {
+            console.time('路径生成');
+            
+            // 移除所有高亮，除了起点
+            gridPoints.forEach(point => {
+                if (point.object.material.color.getHex() !== 0xcccccc && 
+                    gridPoints.indexOf(point) !== startIndex) {
+                    point.object.material.color.set(0xcccccc);
+                }
+            });
+            
+            // 高亮起点
+            const startPoint = gridPoints[startIndex];
+            startPoint.object.material.color.set(0x90EE90); // 浅绿色
+            autoModeStartPoint = startPoint;
+            
+            const path = generateRandomPath(startIndex);
+            console.timeEnd('路径生成');
+            
+            if (path && path.length > 1) {
+                // 创建路径但暂不显示完整路径
+                // 移除旧路径
+                if (pathLine) {
+                    cubeGroup.remove(pathLine);
+                }
+                
+                // 创建新路径
+                const pathPoints = path.map(p => p.position);
+                const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+                const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
+                pathLine = new THREE.Line(pathGeometry, pathMaterial);
+                // 存储原始路径数据，以便动画结束后重新绘制
+                pathLine.userData = { originalPath: path };
+                cubeGroup.add(pathLine);
+                
+                // 显示路径信息
+                const pathInfo = document.getElementById('pathInfo');
+                pathInfo.textContent = '路径: ' + path.map(p => `(${p.index.x},${p.index.y},${p.index.z})`).join(' → ');
+                
+                // 重置动画进度并自动开始动画
+                animationProgress = 0;
+                pathAnimation = true;
+                
+                // 创建路径顶点球体但仅显示起点
+                createPathSpheres(path);
+                pathSpheres.forEach((sphere, i) => {
+                    sphere.visible = showPoints && i === 0; // 初始时只有起点球体可见
+                });
+                
+                // 提示用户
+                console.log(`生成了一条随机路径，起点为: (${path[0].index.x}, ${path[0].index.y}, ${path[0].index.z}), 长度: ${path.length}`);
+                showToast(`已生成随机路径，共经过 ${path.length} 个点`);
+            } else {
+                console.error('无法生成路径，请尝试其他起点。');
+                showToast('无法生成路径，请尝试其他起点。');
+            }
+        }
+        
+        // 添加轨道控制
+        const controls = new OrbitControls(cubeGroup, renderer.domElement);
+        
+        // 动画路径
+        function animatePath() {
+            if (!pathLine || !pathAnimation || manualMode) return;
+            
+            // 创建点到点的动画
+            const positions = pathLine.geometry.attributes.position;
+            const pointCount = positions.count;
+            
+            // 仅显示到当前进度的部分
+            const visibleCount = Math.floor(animationProgress * pointCount);
+            if (visibleCount >= 2) {
+                const animatedPoints = [];
+                for (let i = 0; i < visibleCount; i++) {
+                    animatedPoints.push(new THREE.Vector3(
+                        positions.getX(i),
+                        positions.getY(i),
+                        positions.getZ(i)
+                    ));
+                }
+                
+                // 如果不是整数点，添加部分段
+                if (animationProgress * pointCount !== visibleCount) {
+                    const fraction = (animationProgress * pointCount) - visibleCount;
+                    const lastPoint = new THREE.Vector3(
+                        positions.getX(visibleCount - 1),
+                        positions.getY(visibleCount - 1),
+                        positions.getZ(visibleCount - 1)
+                    );
+                    const nextPoint = new THREE.Vector3(
+                        positions.getX(Math.min(visibleCount, pointCount - 1)),
+                        positions.getY(Math.min(visibleCount, pointCount - 1)),
+                        positions.getZ(Math.min(visibleCount, pointCount - 1))
+                    );
+                    
+                    animatedPoints.push(lastPoint.lerp(nextPoint, fraction));
+                }
+                
+                // 创建新的几何体
+                const animatedGeometry = new THREE.BufferGeometry().setFromPoints(animatedPoints);
+                pathLine.geometry.dispose();
+                pathLine.geometry = animatedGeometry;
+            }
+            
+            // 更新动画进度，调整速度以适应路径长度
+            const speed = Math.max(0.002, Math.min(0.01, 1.0 / positions.count));
+            animationProgress += speed;
+            
+            // 当动画完成时停止动画，不循环播放
+            if (animationProgress >= 1) {
+                animationProgress = 1; // 固定在最终状态
+                pathAnimation = false; // 停止动画
+                
+                // 确保所有球体可见
+                pathSpheres.forEach((sphere) => {
+                    sphere.visible = showPoints;
+                });
+                
+                // 显示完整路径
+                if (pathLine.userData && pathLine.userData.originalPath) {
+                    const path = pathLine.userData.originalPath;
+                    
+                    // 移除旧路径
+                    if (pathLine) {
+                        cubeGroup.remove(pathLine);
+                    }
+                    
+                    // 重新创建完整路径
+                    const pathPoints = path.map(p => p.position);
+                    const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+                    const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
+                    pathLine = new THREE.Line(pathGeometry, pathMaterial);
+                    pathLine.userData = { originalPath: path };
+                    cubeGroup.add(pathLine);
+                    
+                    showToast('动画完成，显示完整路径');
+                }
+            } else {
+                // 更新球体可见性
+                pathSpheres.forEach((sphere, i) => {
+                    const sphereIndex = i / (pathSpheres.length - 1);
+                    sphere.visible = showPoints && sphereIndex <= animationProgress;
+                });
+            }
+        }
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 更新TWEEN动画
+            if (TWEEN) TWEEN.update();
+            
+            // 动画路径
+            animatePath();
+            
+            // 渲染场景
+            renderer.render(scene, camera);
+        }
+        
+        // 窗口大小调整
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 初始化
+        function init() {
+            setupModeSwitch();
+            setupKeyboardControls();
+            makeGridPointsClickable();
+            createDirectionArrows();
+            updateDirectionControls();
+            
+            // 添加CSS样式
+            const style = document.createElement('style');
+            style.textContent = `
+                .steps-guide {
+                    background-color: #fffde7;
+                    border-left: 4px solid #ffc107;
+                    padding: 8px 12px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                .steps-guide p {
+                    margin: 0;
+                    color: #333;
+                }
+                
+                /* 按钮样式改进 */
+                #controls button {
+                    transition: all 0.2s ease;
+                }
+                #controls button:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 设置默认为自动模式
+            document.querySelector('input[name="mode"][value="auto"]').checked = true;
+            manualMode = false;
+            
+            // 更新界面以匹配自动模式
+            const generatePathBtn = document.getElementById('generatePathBtn');
+            const startDrawPathBtn = document.getElementById('startDrawPathBtn');
+            const togglePointsBtn = document.getElementById('togglePointsBtn');
+            const resetPathBtn = document.getElementById('resetPathBtn');
+            const undoLastStepBtn = document.getElementById('undoLastStepBtn');
+            const keyboardGuide = document.getElementById('keyboardGuide');
+            const arrowGuide = document.getElementById('arrowGuide');
+            const autoModeGuide = document.getElementById('autoModeGuide');
+            const manualModeGuide = document.getElementById('manualModeGuide');
+            
+            generatePathBtn.style.display = 'inline-block';
+            startDrawPathBtn.style.display = 'none';
+            togglePointsBtn.style.display = 'inline-block';
+            resetPathBtn.style.display = 'none';
+            undoLastStepBtn.style.display = 'none';
+            keyboardGuide.style.display = 'none';
+            directionControlsGroup.visible = false;
+            arrowGuide.style.display = 'none';
+            autoModeGuide.style.display = 'block';
+            manualModeGuide.style.display = 'none';
+            
+            // 高亮选中的起点
+            const startIndex = parseInt(startPointSelect.value);
+            const startPoint = gridPoints[startIndex];
+            startPoint.object.material.color.set(0x90EE90); // 浅绿色
+            autoModeStartPoint = startPoint;
+            
+            // 将立方体放置到适合的位置
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                cubeGroup.position.y = 0;   // 垂直居中
+                cubeGroup.position.x = 0;   // 水平居中
+                camera.position.z = 10;     // 调整相机距离以便在移动设备上更好地查看
+            } else {
+                // 桌面设备的位置
+                cubeGroup.position.x = -1;  // 向左偏移一点，给右侧的方向控制器留出空间
+            }
+            
+            // 检测设备类型并调整指南显示
+            if (isMobile) {
+                document.getElementById('mouseGuide').style.display = 'none';
+                document.getElementById('touchGuide').style.display = 'block';
+                
+                // 在移动设备上调整keyboardGuide显示
+                if (document.getElementById('keyboardGuide')) {
+                    document.getElementById('keyboardGuide').innerHTML = 
+                        '使用方向箭头控制<br>当前位置: <span class="current-location">(?,?,?)</span>';
+                }
+            }
+            
+            // 开始动画
+            animate();
+        }
+        
+        // 开始初始化
+        init();
+        
+        // 通过索引找到点
+        function findPointByIndex(x, y, z) {
+            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize || z < 0 || z >= gridSize) {
+                return null;
+            }
+            return gridPoints.find(p => 
+                p.index.x === x && p.index.y === y && p.index.z === z);
+        }
+        
+        // 重置手动路径
+        function resetManualPath() {
+            currentManualPath = [];
+            visitedPoints.clear();
+            currentPointIndex = -1;
+            
+            if (pathLine) {
+                cubeGroup.remove(pathLine);
+                pathLine = null;
+            }
+            
+            // 清除所有球体
+            pathSpheres.forEach(sphere => cubeGroup.remove(sphere));
+            pathSpheres = [];
+            
+            const pathInfo = document.getElementById('pathInfo');
+            pathInfo.textContent = '路径: 暂无';
+            document.querySelector('.current-location').textContent = '(?,?,?)';
+            
+            // 更新方向控制器状态
+            updateDirectionControls();
+        }
+        
+        // 检查起点选择改变事件
+        startPointSelect.addEventListener('change', function() {
+            if (!manualMode) {
+                const startIndex = parseInt(this.value);
+                
+                // 移除所有高亮
+                gridPoints.forEach(point => {
+                    if (point.object.material.color.getHex() !== 0xcccccc) {
+                        point.object.material.color.set(0xcccccc);
+                    }
+                });
+                
+                // 高亮当前选中的起点
+                const startPoint = gridPoints[startIndex];
+                startPoint.object.material.color.set(0x90EE90); // 浅绿色
+            }
+        });
+
+        // 选择起点位置按钮事件
+        document.getElementById('selectStartPointBtn').addEventListener('click', function() {
+            // 清空现有路径
+            if (manualMode) {
+                resetManualPath();
+            } else if (!manualMode && pathLine) {
+                // 移除自动模式下的路径
+                cubeGroup.remove(pathLine);
+                pathLine = null;
+                
+                // 清除所有球体
+                pathSpheres.forEach(sphere => cubeGroup.remove(sphere));
+                pathSpheres = [];
+                
+                const pathInfo = document.getElementById('pathInfo');
+                pathInfo.textContent = '路径: 暂无';
+            }
+            
+            showLayerSelector();
+        });
+        
+        // 取消层选择按钮事件
+        document.getElementById('cancelLayerSelection').addEventListener('click', function() {
+            hideLayerSelector();
+            restoreOriginalView();
+        });
+        
+        // 层按钮点击事件
+        document.querySelectorAll('.layerBtn').forEach(button => {
+            button.addEventListener('click', function() {
+                const layerId = this.id;
+                let layerZ = -1;
+                
+                if (layerId === 'layer1Btn') {
+                    layerZ = 0;
+                } else if (layerId === 'layer2Btn') {
+                    layerZ = 1;
+                } else if (layerId === 'layer3Btn') {
+                    layerZ = 2;
+                }
+                
+                if (layerZ >= 0) {
+                    selectedLayer = layerZ;
+                    
+                    // 高亮当前选中的层按钮
+                    document.querySelectorAll('.layerBtn').forEach(btn => {
+                        btn.style.backgroundColor = '#4CAF50';
+                    });
+                    this.style.backgroundColor = '#2E7D32';
+                    
+                    // 显示九宫格选择器
+                    document.getElementById('gridSelector').style.display = 'block';
+                    document.getElementById('confirmSelection').style.display = 'inline-block';
+                    
+                    // 更新九宫格中的坐标标签，添加第三维坐标
+                    document.querySelectorAll('.grid-cell').forEach(cell => {
+                        const x = parseInt(cell.getAttribute('data-x'));
+                        const y = parseInt(cell.getAttribute('data-y'));
+                        const coordSpan = cell.querySelector('.cell-coordinates');
+                        coordSpan.textContent = `(${x},${y},${layerZ})`;
+                    });
+                    
+                    // 重置九宫格高亮
+                    document.querySelectorAll('.grid-cell').forEach(cell => {
+                        cell.classList.remove('highlighted');
+                    });
+                    
+                    // 同时在3D立方体中高亮显示该层
+                    highlightLayer(layerZ);
+                }
+            });
+        });
+        
+        // 添加九宫格单元格点击事件
+        document.querySelectorAll('.grid-cell').forEach(cell => {
+            // 同时支持点击和触摸
+            const clickHandler = function() {
+                if (selectedLayer < 0) return;
+                
+                // 移除其他单元格的高亮
+                document.querySelectorAll('.grid-cell').forEach(c => {
+                    c.classList.remove('highlighted');
+                });
+                
+                // 高亮当前单元格
+                this.classList.add('highlighted');
+                
+                const x = parseInt(this.getAttribute('data-x'));
+                const y = parseInt(this.getAttribute('data-y'));
+                const z = selectedLayer;
+                
+                // 找到对应的3D立方体并高亮
+                const point = findPointByIndex(x, y, z);
+                if (point) {
+                    // 重置所有立方体颜色
+                    gridPoints.forEach(p => {
+                        if (p.object.material.color.getHex() !== 0xcccccc) {
+                            p.object.material.color.set(0xcccccc);
+                        }
+                    });
+                    
+                    // 高亮选中的点
+                    point.object.material.color.set(0x90EE90); // 浅绿色
+                    
+                    // 存储选中的点索引
+                    const selectedPointIndex = gridPoints.indexOf(point);
+                    startPointSelect.value = selectedPointIndex;
+                    
+                    // 清空当前路径显示
+                    if (manualMode) {
+                        resetManualPath();
+                    } else if (!manualMode && pathLine) {
+                        // 自动模式下清除路径
+                        cubeGroup.remove(pathLine);
+                        pathLine = null;
+                        
+                        // 清除所有球体
+                        pathSpheres.forEach(sphere => cubeGroup.remove(sphere));
+                        pathSpheres = [];
+                        
+                        const pathInfo = document.getElementById('pathInfo');
+                        pathInfo.textContent = '路径: 暂无';
+                        
+                        autoModeStartPoint = point;
+                    }
+                }
+            };
+            
+            // 添加点击事件
+            cell.addEventListener('click', clickHandler);
+            
+            // 添加触摸结束事件 - 移动设备支持
+            cell.addEventListener('touchend', function(event) {
+                event.preventDefault(); // 防止双击缩放
+                clickHandler.call(this);
+            });
+        });
+        
+        // 添加确认选择按钮事件
+        document.getElementById('confirmSelection').addEventListener('click', function() {
+            const highlightedCell = document.querySelector('.grid-cell.highlighted');
+            if (!highlightedCell || selectedLayer < 0) {
+                showToast('请先选择一个格子作为起点');
+                return;
+            }
+            
+            // 隐藏选择器并恢复视图
+            hideLayerSelector();
+            restoreOriginalView();
+            
+            // 显示所有立方体
+            gridPoints.forEach(point => {
+                point.object.visible = true;
+            });
+            
+            // 获取选中的坐标
+            const x = parseInt(highlightedCell.getAttribute('data-x'));
+            const y = parseInt(highlightedCell.getAttribute('data-y'));
+            const z = selectedLayer;
+            
+            const point = findPointByIndex(x, y, z);
+            if (point) {
+                const selectedPointIndex = gridPoints.indexOf(point);
+                
+                // 设置选择框的值
+                startPointSelect.value = selectedPointIndex;
+                
+                // 显示提示
+                showToast(`已选择起点(${x}, ${y}, ${z})`);
+                
+                // 重置所有立方体颜色
+                gridPoints.forEach(p => {
+                    if (p.object.material.color.getHex() !== 0xcccccc) {
+                        p.object.material.color.set(0xcccccc);
+                    }
+                });
+                
+                // 高亮选中的点
+                point.object.material.color.set(0x90EE90); // 浅绿色
+                
+                if (manualMode) {
+                    resetManualPath();
+                } else {
+                    autoModeStartPoint = point;
+                }
+            }
+        });
+        
+        // 显示层选择器
+        function showLayerSelector() {
+            const layerSelector = document.getElementById('layerSelector');
+            layerSelector.style.display = 'block';
+            document.getElementById('gridSelector').style.display = 'none';
+            document.getElementById('confirmSelection').style.display = 'none';
+            
+            // 添加提示文本
+            const hintElem = document.createElement('div');
+            hintElem.className = 'layer-selection-hint';
+            hintElem.textContent = '提示：点击选择一个层，然后在九宫格中选择具体坐标作为起点';
+            
+            // 检查是否已有提示
+            const existingHint = layerSelector.querySelector('.layer-selection-hint');
+            if (!existingHint) {
+                layerSelector.insertBefore(hintElem, layerSelector.firstChild);
+            }
+            
+            // 重置层按钮样式
+            document.querySelectorAll('.layerBtn').forEach(btn => {
+                btn.style.backgroundColor = '#4CAF50';
+            });
+            
+            isSelectingLayer = true;
+            selectedLayer = -1;
+            
+            // 保存当前相机位置和立方体旋转
+            saveOriginalView();
+            
+            // 调整选择器位置，确保在移动设备上也能正常显示
+            if (isMobileDevice()) {
+                layerSelector.style.width = '260px';
+                layerSelector.style.padding = '10px';
+                layerSelector.style.top = '50px';
+                layerSelector.style.right = '10px';
+                
+                // 使提示文字更小
+                if (existingHint) {
+                    existingHint.style.fontSize = '12px';
+                    existingHint.style.padding = '8px';
+                }
+                if (hintElem) {
+                    hintElem.style.fontSize = '12px';
+                    hintElem.style.padding = '8px';
+                }
+                
+                // 减小九宫格的尺寸
+                document.querySelectorAll('.grid-cell').forEach(cell => {
+                    cell.style.width = '40px';
+                    cell.style.height = '40px';
+                    cell.style.fontSize = '12px';
+                });
+                
+                // 减小按钮尺寸
+                document.querySelectorAll('#layerSelector button').forEach(btn => {
+                    btn.style.padding = '5px 8px';
+                    btn.style.fontSize = '12px';
+                });
+            } else {
+                // 桌面尺寸
+                layerSelector.style.width = '280px';
+                layerSelector.style.padding = '20px';
+                layerSelector.style.top = '120px';
+                layerSelector.style.right = '20px';
+            }
+        }
+        
+        // 隐藏层选择器
+        function hideLayerSelector() {
+            const layerSelector = document.getElementById('layerSelector');
+            layerSelector.style.display = 'none';
+            document.getElementById('gridSelector').style.display = 'none';
+            document.getElementById('confirmSelection').style.display = 'none';
+            
+            isSelectingLayer = false;
+            selectedLayer = -1;
+        }
+        
+        // 保存当前视图状态
+        function saveOriginalView() {
+            originalCameraPosition = {
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            };
+            
+            originalCubeRotation = {
+                x: cubeGroup.rotation.x,
+                y: cubeGroup.rotation.y,
+                z: cubeGroup.rotation.z
+            };
+        }
+        
+        // 还原到原始视图
+        function restoreOriginalView() {
+            if (originalCameraPosition && originalCubeRotation) {
+                // 恢复所有立方体的可见性和不透明度
+                gridPoints.forEach(point => {
+                    point.object.visible = true;
+                    point.object.material.transparent = false;
+                    point.object.material.opacity = 1;
+                });
+                
+                // 恢复相机位置和旋转
+                new TWEEN.Tween(camera.position)
+                    .to(originalCameraPosition, 1000)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .start();
+                
+                new TWEEN.Tween(cubeGroup.rotation)
+                    .to(originalCubeRotation, 1000)
+                    .easing(TWEEN.Easing.Quadratic.Out)
+                    .start();
+            }
+        }
+        
+        // 高亮显示选中的层
+        function highlightLayer(layerZ) {
+            // 先恢复所有立方体的可见性和颜色
+            gridPoints.forEach(point => {
+                point.object.visible = true;
+                point.object.material.color.set(0xcccccc);
+            });
+            
+            // 将非选中层的立方体设为半透明
+            gridPoints.forEach(point => {
+                if (point.index.z !== layerZ) {
+                    point.object.material.opacity = 0.3; // 增加透明度使高亮更明显
+                    point.object.material.transparent = true;
+                } else {
+                    point.object.material.opacity = 1;
+                    point.object.material.transparent = false;
+                    // 更明显地加亮该层
+                    point.object.material.color.set(0x90ee90); // 使用更明显的颜色，亮绿色
+                }
+            });
+        }
+
+        // 动画结束时简化移动设备上的提示
+        function onAnimationComplete() {
+            if (isMobileDevice()) {
+                showToast('动画完成');
+            } else {
+                showToast('动画完成，显示完整路径');
+            }
+        }
+    </script>
+</body>
+</html>
