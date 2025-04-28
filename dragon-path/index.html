@@ -484,7 +484,7 @@
         // 创建小立方体的边框
         function createCubeFrame(x, y, z) {
             const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize));
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xcccccc }));  // 修改为更浅的灰色
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xdddddd }));  // 修改为更浅的灰色
             
             // 实际位置
             const posX = x * spacing - offset;
